@@ -125,6 +125,8 @@ namespace LinkShot.Game
 
             float cellWidth = FieldWidth / GameConfig.WallGridColumns;
             float cellHeight = WallBandHeight() / GameConfig.WallGridRows;
+            float wallWidth = cellWidth * 0.9f;
+            float wallHeight = cellHeight * 0.28f; // 薄い壁として表示する（block状にしない）
 
             foreach (WallPlacement wall in walls)
             {
@@ -135,7 +137,7 @@ namespace LinkShot.Game
                 go.transform.position = pos;
 
                 var collider = go.AddComponent<BoxCollider2D>();
-                collider.size = new Vector2(cellWidth * 0.8f, cellHeight * 0.8f);
+                collider.size = new Vector2(wallWidth, wallHeight);
                 collider.sharedMaterial = PhysicsMaterials.Bouncy;
 
                 var marker = go.AddComponent<WallMarker>();
@@ -145,7 +147,7 @@ namespace LinkShot.Game
                 Sprite sprite = wall.IsDefaultWall
                     ? Resources.Load<Sprite>(PhysicsSpritePath + "elementStone018")
                     : Resources.Load<Sprite>(PhysicsSpritePath + "elementWood018");
-                AddVisual(go, cellWidth * 0.8f, cellHeight * 0.8f, Color.white, sprite);
+                AddVisual(go, wallWidth, wallHeight, Color.white, sprite);
 
                 _wallObjects.Add(go);
             }

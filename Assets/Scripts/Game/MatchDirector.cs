@@ -297,6 +297,10 @@ namespace LinkShot.Game
             yield return new WaitUntil(() => proceed);
 
             PhaseMachine.Dispatch(_state, new ProceedAction());
+
+            // このショットの壁・バウンド板は役目を終えたので撤去する（次の壁配置フェーズで新たに配置される）。
+            _fieldView.ApplyWalls(new List<WallPlacement>());
+            _fieldView.ApplyBounceBoards(new List<BouncePlacement>());
         }
 
         private void UpdateHudStatus()
