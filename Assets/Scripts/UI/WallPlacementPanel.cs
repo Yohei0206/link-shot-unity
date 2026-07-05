@@ -10,19 +10,20 @@ namespace LinkShot.UI
     /// <summary>
     /// (2)(7) 壁選択フェーズ: 防御側が常設壁1個(必須)＋使い捨て壁カード0枚以上を5x2グリッドに配置する（GAME_RULES.md 7章）。
     /// 壁配置は公開情報のため、HandoverScreenでの秘匿は不要（GAME_RULES.md 3章補足）。
-    /// グリッドのボタンはFieldView側の壁セル座標をカメラ経由でCanvas座標に投影して配置し、
-    /// 実際に壁が生成される位置・サイズとズレないようにする。
+    /// モーダル背景は出さず、盤面（FieldView）の壁配置エリアに直接タップ判定を重ねる。
+    /// タップ判定は掴みやすいようセル全体を使うが、見た目（プレビュー）はFieldViewで実際に生成される
+    /// 薄い壁と同じ幅・高さにしておき、隣接セルに置いたときに隙間が見えるようにする。
     /// </summary>
     public class WallPlacementPanel : MonoBehaviour
     {
-        private static readonly Color EmptyColor = new Color(0.6f, 0.6f, 0.6f);
-        private static readonly Color DefaultWallColor = new Color(0.45f, 0.25f, 0.1f);
-        private static readonly Color DisposableWallColor = new Color(0.85f, 0.55f, 0.2f);
+        private static readonly Color EmptyColor = new Color(1f, 1f, 1f, 0.18f);
+        private static readonly Color DefaultWallColor = new Color(0.45f, 0.25f, 0.1f, 0.9f);
+        private static readonly Color DisposableWallColor = new Color(0.85f, 0.55f, 0.2f, 0.9f);
 
         private Text _titleText;
         private Text _remainingText;
         private Button _confirmButton;
-        private readonly Image[] _cellImages = new Image[GameConfig.WallGridCellCount];
+        private readonly Image[] _cellIndicators = new Image[GameConfig.WallGridCellCount];
 
         private FieldView _fieldView;
         private Camera _camera;
@@ -34,14 +35,14 @@ namespace LinkShot.UI
 
         private void Awake()
         {
-            Image background = UITheme.CreateImage(transform, "Background", null, new Color(0f, 0f, 0f, 0.75f));
-            UITheme.Stretch(background.rectTransform);
+            Image instructionBacking = UITheme.CreateImage(transform, "InstructionBacking", null, new Color(0f, 0f, 0f, 0.5f));
+            UITheme.SetRect(instructionBacking.rectTransform, new Vector2(0, 780), new Vector2(1080, 200));
 
-            _titleText = UITheme.CreateText(transform, "Title", string.Empty, 40, Color.white, TextAnchor.MiddleCenter);
-            UITheme.SetRect(_titleText.rectTransform, new Vector2(0, 700), new Vector2(1000, 100));
+            _titleText = UITheme.CreateText(transform, "Title", string.Empty, 36, Color.white, TextAnchor.MiddleCenter);
+            UITheme.SetRect(_titleText.rectTransform, new Vector2(0, 820), new Vector2(1000, 80));
 
-            _remainingText = UITheme.CreateText(transform, "Remaining", string.Empty, 32, Color.white, TextAnchor.MiddleCenter);
-            UITheme.SetRect(_remainingText.rectTransform, new Vector2(0, 600), new Vector2(1000, 60));
+            _remainingText = UITheme.CreateText(transform, "Remaining", string.Empty, 28, Color.white, TextAnchor.MiddleCenter);
+            UITheme.SetRect(_remainingText.rectTransform, new Vector2(0, 740), new Vector2(1000, 60));
 
             _confirmButton = UITheme.CreateButton(transform, "ConfirmButton", "この配置で確定", HandleConfirm);
             UITheme.SetRect(_confirmButton.GetComponent<RectTransform>(), new Vector2(0, -650), new Vector2(500, 140));
@@ -66,25 +67,36 @@ namespace LinkShot.UI
             {
                 int cellIndex = i;
                 Vector2 centerWorld = _fieldView.GetWallCellCenter(i);
-
                 Vector2 centerLocal = WorldToCanvasLocal(centerWorld, rectTransform);
-                Vector2 leftLocal = WorldToCanvasLocal(centerWorld + new Vector2(-cellSizeWorld.x / 2f, 0f), rectTransform);
-                Vector2 rightLocal = WorldToCanvasLocal(centerWorld + new Vector2(cellSizeWorld.x / 2f, 0f), rectTransform);
-                Vector2 topLocal = WorldToCanvasLocal(centerWorld + new Vector2(0f, cellSizeWorld.y / 2f), rectTransform);
-                Vector2 bottomLocal = WorldToCanvasLocal(centerWorld + new Vector2(0f, -cellSizeWorld.y / 2f), rectTransform);
 
-                float width = Mathf.Abs(rightLocal.x - leftLocal.x) * 0.92f;
-                float height = Mathf.Abs(topLocal.y - bottomLocal.y) * 0.92f;
+                // タップ判定はセル全体を使う（掴みやすさ優先）。見た目はほぼ透明。
+                Vector2 hitSize = ProjectWorldSize(centerWorld, cellSizeWorld * 0.95f, rectTransform);
+                Image hitArea = UITheme.CreateImage(transform, $"CellHit_{i}", null, EmptyColor);
+                UITheme.SetRect(hitArea.rectTransform, centerLocal, hitSize);
 
-                Image cellImage = UITheme.CreateImage(transform, $"Cell_{i}", UITheme.LoadButtonSprite("button_square_flat"), EmptyColor);
-                UITheme.SetRect(cellImage.rectTransform, centerLocal, new Vector2(width, height));
-
-                var button = cellImage.gameObject.AddComponent<Button>();
-                button.targetGraphic = cellImage;
+                var button = hitArea.gameObject.AddComponent<Button>();
+                button.targetGraphic = hitArea;
                 button.onClick.AddListener(() => HandleCellClicked(cellIndex));
 
-                _cellImages[i] = cellImage;
+                // 見た目はFieldViewで実際に生成される薄い壁と同じ幅・高さにして、
+                // 隣接セルとの隙間がプレビューの時点から見えるようにする。
+                Vector2 previewSizeWorld = new Vector2(cellSizeWorld.x * FieldView.WallVisualWidthRatio, cellSizeWorld.y * FieldView.WallVisualHeightRatio);
+                Vector2 previewSize = ProjectWorldSize(centerWorld, previewSizeWorld, rectTransform);
+                Image indicator = UITheme.CreateImage(hitArea.transform, "Indicator", UITheme.LoadButtonSprite("button_square_flat"), EmptyColor);
+                UITheme.SetRect(indicator.rectTransform, Vector2.zero, previewSize);
+
+                _cellIndicators[i] = indicator;
             }
+        }
+
+        private Vector2 ProjectWorldSize(Vector2 centerWorld, Vector2 sizeWorld, RectTransform rectTransform)
+        {
+            Vector2 leftLocal = WorldToCanvasLocal(centerWorld + new Vector2(-sizeWorld.x / 2f, 0f), rectTransform);
+            Vector2 rightLocal = WorldToCanvasLocal(centerWorld + new Vector2(sizeWorld.x / 2f, 0f), rectTransform);
+            Vector2 topLocal = WorldToCanvasLocal(centerWorld + new Vector2(0f, sizeWorld.y / 2f), rectTransform);
+            Vector2 bottomLocal = WorldToCanvasLocal(centerWorld + new Vector2(0f, -sizeWorld.y / 2f), rectTransform);
+
+            return new Vector2(Mathf.Abs(rightLocal.x - leftLocal.x), Mathf.Abs(topLocal.y - bottomLocal.y));
         }
 
         private Vector2 WorldToCanvasLocal(Vector2 worldPos, RectTransform rectTransform)
@@ -134,19 +146,19 @@ namespace LinkShot.UI
 
         private void RefreshVisuals()
         {
-            for (int i = 0; i < _cellImages.Length; i++)
+            for (int i = 0; i < _cellIndicators.Length; i++)
             {
                 if (_defaultCell == i)
                 {
-                    _cellImages[i].color = DefaultWallColor;
+                    _cellIndicators[i].color = DefaultWallColor;
                 }
                 else if (_disposableCells.Contains(i))
                 {
-                    _cellImages[i].color = DisposableWallColor;
+                    _cellIndicators[i].color = DisposableWallColor;
                 }
                 else
                 {
-                    _cellImages[i].color = EmptyColor;
+                    _cellIndicators[i].color = EmptyColor;
                 }
             }
 

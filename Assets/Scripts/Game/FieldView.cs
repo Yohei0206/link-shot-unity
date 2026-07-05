@@ -13,6 +13,11 @@ namespace LinkShot.Game
         public const float FieldWidth = 6f;
         public const float FieldHeight = 8f;
 
+        // 壁1枚の見た目サイズ（壁グリッド1セルに対する比率）。UI/WallPlacementPanelのプレビューもこれを参照し、
+        // 隣接セルに置いたときに隙間ができる見た目に合わせる。
+        public const float WallVisualWidthRatio = 0.5f;
+        public const float WallVisualHeightRatio = 0.28f;
+
         // GAME_RULES.md 7章の帯構成（上端からの割合）。
         private const float TargetBandBottomFraction = 0.20f;
         private const float WallBandBottomFraction = 0.45f;
@@ -125,8 +130,8 @@ namespace LinkShot.Game
 
             float cellWidth = FieldWidth / GameConfig.WallGridColumns;
             float cellHeight = WallBandHeight() / GameConfig.WallGridRows;
-            float wallWidth = cellWidth * 0.9f;
-            float wallHeight = cellHeight * 0.28f; // 薄い壁として表示する（block状にしない）
+            float wallWidth = cellWidth * WallVisualWidthRatio;
+            float wallHeight = cellHeight * WallVisualHeightRatio;
 
             foreach (WallPlacement wall in walls)
             {
