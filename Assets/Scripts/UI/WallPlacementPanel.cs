@@ -16,9 +16,8 @@ namespace LinkShot.UI
     /// </summary>
     public class WallPlacementPanel : MonoBehaviour
     {
-        private static readonly Color EmptyColor = new Color(1f, 1f, 1f, 0.18f);
-        private static readonly Color DefaultWallColor = new Color(0.45f, 0.25f, 0.1f, 0.9f);
-        private static readonly Color DisposableWallColor = new Color(0.85f, 0.55f, 0.2f, 0.9f);
+        private static readonly Color EmptyColor = new Color(1f, 1f, 1f, 0f);
+        private static readonly Color HitAreaColor = new Color(1f, 1f, 1f, 0.18f);
 
         private Text _titleText;
         private Text _remainingText;
@@ -71,18 +70,18 @@ namespace LinkShot.UI
 
                 // タップ判定はセル全体を使う（掴みやすさ優先）。見た目はほぼ透明。
                 Vector2 hitSize = ProjectWorldSize(centerWorld, cellSizeWorld * 0.95f, rectTransform);
-                Image hitArea = UITheme.CreateImage(transform, $"CellHit_{i}", null, EmptyColor);
+                Image hitArea = UITheme.CreateImage(transform, $"CellHit_{i}", null, HitAreaColor);
                 UITheme.SetRect(hitArea.rectTransform, centerLocal, hitSize);
 
                 var button = hitArea.gameObject.AddComponent<Button>();
                 button.targetGraphic = hitArea;
                 button.onClick.AddListener(() => HandleCellClicked(cellIndex));
 
-                // 見た目はFieldViewで実際に生成される薄い壁と同じ幅・高さにして、
-                // 隣接セルとの隙間がプレビューの時点から見えるようにする。
+                // プレビューはFieldViewが実際に生成する壁と同じスプライト・幅・高さを使い、
+                // 選択中の見た目と配置後の見た目が一致するようにする（未選択時は透明）。
                 Vector2 previewSizeWorld = new Vector2(cellSizeWorld.x * FieldView.WallVisualWidthRatio, cellSizeWorld.y * FieldView.WallVisualHeightRatio);
                 Vector2 previewSize = ProjectWorldSize(centerWorld, previewSizeWorld, rectTransform);
-                Image indicator = UITheme.CreateImage(hitArea.transform, "Indicator", UITheme.LoadButtonSprite("button_square_flat"), EmptyColor);
+                Image indicator = UITheme.CreateImage(hitArea.transform, "Indicator", FieldView.LoadDefaultWallSprite(), EmptyColor);
                 UITheme.SetRect(indicator.rectTransform, Vector2.zero, previewSize);
 
                 _cellIndicators[i] = indicator;
@@ -148,17 +147,21 @@ namespace LinkShot.UI
         {
             for (int i = 0; i < _cellIndicators.Length; i++)
             {
+                Image indicator = _cellIndicators[i];
+
                 if (_defaultCell == i)
                 {
-                    _cellIndicators[i].color = DefaultWallColor;
+                    indicator.sprite = FieldView.LoadDefaultWallSprite();
+                    indicator.color = Color.white;
                 }
                 else if (_disposableCells.Contains(i))
                 {
-                    _cellIndicators[i].color = DisposableWallColor;
+                    indicator.sprite = FieldView.LoadDisposableWallSprite();
+                    indicator.color = Color.white;
                 }
                 else
                 {
-                    _cellIndicators[i].color = EmptyColor;
+                    indicator.color = EmptyColor;
                 }
             }
 

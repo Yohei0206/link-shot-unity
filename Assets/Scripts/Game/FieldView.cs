@@ -173,9 +173,7 @@ namespace LinkShot.Game
                 marker.CellIndex = wall.CellIndex;
                 marker.IsDefaultWall = wall.IsDefaultWall;
 
-                Sprite sprite = wall.IsDefaultWall
-                    ? Resources.Load<Sprite>(PhysicsSpritePath + "elementStone018")
-                    : Resources.Load<Sprite>(PhysicsSpritePath + "elementWood018");
+                Sprite sprite = wall.IsDefaultWall ? LoadDefaultWallSprite() : LoadDisposableWallSprite();
                 AddVisual(go, wallWidth, wallHeight, Color.white, sprite);
 
                 _wallObjects.Add(go);
@@ -237,6 +235,18 @@ namespace LinkShot.Game
             float cellWidth = FieldWidth / GameConfig.WallGridColumns;
             float cellHeight = WallBandHeight() / GameConfig.WallGridRows;
             return new Vector2(cellWidth, cellHeight);
+        }
+
+        /// <summary>常設壁の見た目スプライト。WallPlacementPanelのプレビューも同じものを使い、見た目を一致させる。</summary>
+        public static Sprite LoadDefaultWallSprite()
+        {
+            return Resources.Load<Sprite>(PhysicsSpritePath + "elementStone018");
+        }
+
+        /// <summary>使い捨て壁カードの見た目スプライト。WallPlacementPanelのプレビューも同じものを使い、見た目を一致させる。</summary>
+        public static Sprite LoadDisposableWallSprite()
+        {
+            return Resources.Load<Sprite>(PhysicsSpritePath + "elementWood018");
         }
 
         private static float WallBandHeight()
