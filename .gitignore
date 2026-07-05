@@ -40,3 +40,7 @@ Thumbs.db
 
 # crashlytics
 crashlytics-build.properties
+
+# Unity MCPの動作確認用スクリーンショット
+Assets/Screenshots/
+Assets/Screenshots.meta

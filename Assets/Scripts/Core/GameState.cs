@@ -1,0 +1,106 @@
+using System.Collections.Generic;
+using System.Linq;
+
+namespace LinkShot.Core
+{
+    /// <summary>1プレイヤーの手持ちリソースと状態（GAME_RULES.md 2章）。</summary>
+    public sealed class PlayerState
+    {
+        public readonly int PlayerIndex;
+        public readonly List<string> Hand = new List<string>();
+        public readonly HashSet<string> UsedMedalIds = new HashSet<string>();
+        public int DisposableWallCardsRemaining = GameConfig.DisposableWallCardCount;
+
+        /// <summary>このラウンドで防御側として使い捨て壁カードを何枚使ったか（WALL_RETURN判定用、ラウンド開始時に0リセット）。</summary>
+        public int DisposableWallCardsUsedThisRound;
+
+        /// <summary>このラウンドで伏せてセットしたメダルID（ラウンド中は不変）。</summary>
+        public string SetMedalId;
+
+        public int Score;
+
+        public PlayerState(int playerIndex, IEnumerable<string> deckMedalIds)
+        {
+            PlayerIndex = playerIndex;
+            Hand.AddRange(deckMedalIds);
+        }
+    }
+
+    /// <summary>フィールドの可変状態。壁・バウンド板・発射ポジションはショットごとにリセットされる。</summary>
+    public sealed class FieldState
+    {
+        public readonly List<WallPlacement> DefenderWalls = new List<WallPlacement>();
+        public readonly List<BouncePlacement> BounceBoards = new List<BouncePlacement>();
+        public int LaunchPosition; // 1..6。0は未決定
+        public TargetZoneId? WideGateZone;
+
+        public void Reset()
+        {
+            DefenderWalls.Clear();
+            BounceBoards.Clear();
+            LaunchPosition = 0;
+            WideGateZone = null;
+        }
+    }
+
+    /// <summary>試合全体の状態（ARCHITECTURE.md 2.3章）。MonoBehaviourを持ち込まない純粋C#。</summary>
+    public sealed class GameState
+    {
+        public int Round = 1; // 1..RoundCount
+        public int ShotIndex; // 0=先攻の攻撃, 1=後攻の攻撃
+        public Phase Phase = Phase.MedalSet;
+        public readonly PlayerState[] Players = new PlayerState[2];
+        public readonly int FirstAttackerPlayer; // 試合を通して固定される先攻P
+        public readonly FieldState Field = new FieldState();
+        public readonly List<ShotRecord> History = new List<ShotRecord>();
+
+        // --- 発射ポジション決定フェーズの一時状態 ---
+        public int? PendingDiceRoll;
+        public bool RerollAvailable;
+        public bool RerollUsed;
+
+        // --- ショットフェーズの一時状態 ---
+        public ShotModifier CurrentShotModifier = ShotModifier.Default;
+        public int ShotAttemptsRemaining;
+        public readonly List<int> ShotAttemptScores = new List<int>();
+        public readonly List<ShotOutcomeKind> ShotAttemptOutcomes = new List<ShotOutcomeKind>();
+
+        public readonly Rng Rng;
+
+        public GameState(IReadOnlyList<string> deckPlayer0, IReadOnlyList<string> deckPlayer1, int firstAttackerPlayer = 0, Rng rng = null)
+        {
+            Players[0] = new PlayerState(0, deckPlayer0);
+            Players[1] = new PlayerState(1, deckPlayer1);
+            FirstAttackerPlayer = firstAttackerPlayer;
+            Rng = rng ?? new Rng();
+        }
+
+        public int CurrentAttacker => ShotIndex == 0 ? FirstAttackerPlayer : 1 - FirstAttackerPlayer;
+        public int CurrentDefender => 1 - CurrentAttacker;
+
+        public Medal AttackerMedal => MedalCatalog.Get(Players[CurrentAttacker].SetMedalId);
+        public Medal DefenderMedal => MedalCatalog.Get(Players[CurrentDefender].SetMedalId);
+
+        /// <summary>
+        /// 攻撃側のメダル効果が発動するか（GAME_RULES.md 4.2章）。
+        /// ルールエンジンは非公開情報の制約を受けないため、両者のメダルが確定した時点でいつでも判定できる。
+        /// </summary>
+        public bool CurrentShotEffectActivated => Elements.AttackerEffectActivates(AttackerMedal.Element, DefenderMedal.Element);
+
+        public bool BothMedalsSet => Players[0].SetMedalId != null && Players[1].SetMedalId != null;
+
+        /// <summary>試合の勝者（0/1）。同点は引き分けでnull（GAME_RULES.md 1章）。Phase.MatchEnd到達後に参照する想定。</summary>
+        public int? Winner
+        {
+            get
+            {
+                if (Players[0].Score == Players[1].Score)
+                {
+                    return null;
+                }
+
+                return Players[0].Score > Players[1].Score ? 0 : 1;
+            }
+        }
+    }
+}
