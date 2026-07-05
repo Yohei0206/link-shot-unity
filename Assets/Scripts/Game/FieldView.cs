@@ -21,6 +21,9 @@ namespace LinkShot.Game
 
         private static Sprite _sharedSquareSprite;
 
+        private const string PhysicsSpritePath = "Field/Kenney/Physics/";
+        private const string LaunchRingSpritePath = "UI/Kenney/PNG/Blue/Default/icon_outline_circle";
+
         private readonly List<GameObject> _wallObjects = new List<GameObject>();
         private readonly List<GameObject> _bounceBoardObjects = new List<GameObject>();
         private readonly Dictionary<int, GameObject> _launchMarkers = new Dictionary<int, GameObject>();
@@ -62,8 +65,10 @@ namespace LinkShot.Game
             marker.ZoneId = zoneId;
             marker.BaseRadius = radius;
 
-            Color color = zoneId == TargetZoneId.Center ? new Color(0.2f, 0.6f, 1f) : new Color(1f, 0.8f, 0.1f);
-            AddVisual(go, radius * 2f, radius * 2f, color);
+            Sprite sprite = zoneId == TargetZoneId.Center
+                ? Resources.Load<Sprite>(PhysicsSpritePath + "coinSilver")
+                : Resources.Load<Sprite>(PhysicsSpritePath + "starGold");
+            AddVisual(go, radius * 2.4f, radius * 2.4f, Color.white, sprite);
         }
 
         private void BuildLaunchPositions()
@@ -89,7 +94,8 @@ namespace LinkShot.Game
                 marker.Position = position;
                 marker.BaseRadius = radius;
 
-                AddVisual(go, radius * 2f, radius * 2f, new Color(0.6f, 0.6f, 0.6f, 0.5f));
+                Sprite ringSprite = Resources.Load<Sprite>(LaunchRingSpritePath);
+                AddVisual(go, radius * 2.2f, radius * 2.2f, new Color(1f, 1f, 1f, 0.7f), ringSprite);
                 _launchMarkers[position] = go;
             }
         }
@@ -136,8 +142,10 @@ namespace LinkShot.Game
                 marker.CellIndex = wall.CellIndex;
                 marker.IsDefaultWall = wall.IsDefaultWall;
 
-                Color color = wall.IsDefaultWall ? new Color(0.45f, 0.25f, 0.1f) : new Color(0.75f, 0.5f, 0.2f);
-                AddVisual(go, cellWidth * 0.8f, cellHeight * 0.8f, color);
+                Sprite sprite = wall.IsDefaultWall
+                    ? Resources.Load<Sprite>(PhysicsSpritePath + "elementStone018")
+                    : Resources.Load<Sprite>(PhysicsSpritePath + "elementWood018");
+                AddVisual(go, cellWidth * 0.8f, cellHeight * 0.8f, Color.white, sprite);
 
                 _wallObjects.Add(go);
             }
@@ -168,7 +176,8 @@ namespace LinkShot.Game
                 collider.sharedMaterial = PhysicsMaterials.Bouncy;
 
                 go.AddComponent<BounceBoardMarker>();
-                AddVisual(go, size, size, new Color(0.2f, 0.9f, 0.5f));
+                Sprite sprite = Resources.Load<Sprite>(PhysicsSpritePath + "elementGlass008");
+                AddVisual(go, size, size, Color.white, sprite);
 
                 _bounceBoardObjects.Add(go);
             }
@@ -212,10 +221,10 @@ namespace LinkShot.Game
             return new Vector2(x, y);
         }
 
-        private static void AddVisual(GameObject go, float width, float height, Color color)
+        private static void AddVisual(GameObject go, float width, float height, Color color, Sprite sprite = null)
         {
             var renderer = go.AddComponent<SpriteRenderer>();
-            renderer.sprite = GetSharedSquareSprite();
+            renderer.sprite = sprite != null ? sprite : GetSharedSquareSprite();
             renderer.color = color;
             go.transform.localScale = new Vector3(width, height, 1f);
         }

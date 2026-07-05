@@ -76,7 +76,7 @@ namespace LinkShot.Game
             _ballObject.transform.SetParent(transform);
 
             var renderer = _ballObject.AddComponent<SpriteRenderer>();
-            renderer.sprite = FieldView.GetSharedSquareSprite();
+            renderer.sprite = Resources.Load<Sprite>("Field/Kenney/Sports/ball_soccer1");
             renderer.color = Color.white;
             renderer.sortingOrder = 10;
 
