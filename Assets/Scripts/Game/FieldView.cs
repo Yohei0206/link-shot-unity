@@ -196,6 +196,20 @@ namespace LinkShot.Game
             return boosted ? radius * GameConfig.RangeBoostRadiusMultiplier : radius;
         }
 
+        /// <summary>壁グリッドの各セル中心のワールド座標（WallPlacementPanelのUIをフィールドに正しく重ねるために公開）。</summary>
+        public Vector2 GetWallCellCenter(int cellIndex)
+        {
+            return WallCellToWorld(cellIndex);
+        }
+
+        /// <summary>壁グリッド1セル分のワールドサイズ（幅・高さ）。</summary>
+        public Vector2 GetWallCellSize()
+        {
+            float cellWidth = FieldWidth / GameConfig.WallGridColumns;
+            float cellHeight = WallBandHeight() / GameConfig.WallGridRows;
+            return new Vector2(cellWidth, cellHeight);
+        }
+
         private static float WallBandHeight()
         {
             return FractionToWorldY(TargetBandBottomFraction) - FractionToWorldY(WallBandBottomFraction);

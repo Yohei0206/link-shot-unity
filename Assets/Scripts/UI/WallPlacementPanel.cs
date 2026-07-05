@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using LinkShot.Core;
+using LinkShot.Game;
 using UnityEngine;
 using UnityEngine.UI;
 
@@ -9,6 +10,8 @@ namespace LinkShot.UI
     /// <summary>
     /// (2)(7) 壁選択フェーズ: 防御側が常設壁1個(必須)＋使い捨て壁カード0枚以上を5x2グリッドに配置する（GAME_RULES.md 7章）。
     /// 壁配置は公開情報のため、HandoverScreenでの秘匿は不要（GAME_RULES.md 3章補足）。
+    /// グリッドのボタンはFieldView側の壁セル座標をカメラ経由でCanvas座標に投影して配置し、
+    /// 実際に壁が生成される位置・サイズとズレないようにする。
     /// </summary>
     public class WallPlacementPanel : MonoBehaviour
     {
@@ -20,6 +23,9 @@ namespace LinkShot.UI
         private Text _remainingText;
         private Button _confirmButton;
         private readonly Image[] _cellImages = new Image[GameConfig.WallGridCellCount];
+
+        private FieldView _fieldView;
+        private Camera _camera;
 
         private int? _defaultCell;
         private readonly HashSet<int> _disposableCells = new HashSet<int>();
@@ -37,35 +43,41 @@ namespace LinkShot.UI
             _remainingText = UITheme.CreateText(transform, "Remaining", string.Empty, 32, Color.white, TextAnchor.MiddleCenter);
             UITheme.SetRect(_remainingText.rectTransform, new Vector2(0, 600), new Vector2(1000, 60));
 
-            BuildGrid();
-
             _confirmButton = UITheme.CreateButton(transform, "ConfirmButton", "この配置で確定", HandleConfirm);
             UITheme.SetRect(_confirmButton.GetComponent<RectTransform>(), new Vector2(0, -650), new Vector2(500, 140));
 
             gameObject.SetActive(false);
         }
 
+        /// <summary>MatchDirectorから一度だけ呼び出し、フィールドの実座標を使ってグリッドを構築する。</summary>
+        public void Configure(FieldView fieldView, Camera camera)
+        {
+            _fieldView = fieldView;
+            _camera = camera;
+            BuildGrid();
+        }
+
         private void BuildGrid()
         {
-            const float cellSize = 160f;
-            const float spacing = 24f;
-            int columns = GameConfig.WallGridColumns;
-            int rows = GameConfig.WallGridRows;
-
-            float totalWidth = columns * cellSize + (columns - 1) * spacing;
-            float totalHeight = rows * cellSize + (rows - 1) * spacing;
+            var rectTransform = (RectTransform)transform;
+            Vector2 cellSizeWorld = _fieldView.GetWallCellSize();
 
             for (int i = 0; i < GameConfig.WallGridCellCount; i++)
             {
                 int cellIndex = i;
-                int row = i / columns;
-                int col = i % columns;
+                Vector2 centerWorld = _fieldView.GetWallCellCenter(i);
 
-                float x = -totalWidth / 2f + cellSize / 2f + col * (cellSize + spacing);
-                float y = totalHeight / 2f - cellSize / 2f - row * (cellSize + spacing);
+                Vector2 centerLocal = WorldToCanvasLocal(centerWorld, rectTransform);
+                Vector2 leftLocal = WorldToCanvasLocal(centerWorld + new Vector2(-cellSizeWorld.x / 2f, 0f), rectTransform);
+                Vector2 rightLocal = WorldToCanvasLocal(centerWorld + new Vector2(cellSizeWorld.x / 2f, 0f), rectTransform);
+                Vector2 topLocal = WorldToCanvasLocal(centerWorld + new Vector2(0f, cellSizeWorld.y / 2f), rectTransform);
+                Vector2 bottomLocal = WorldToCanvasLocal(centerWorld + new Vector2(0f, -cellSizeWorld.y / 2f), rectTransform);
+
+                float width = Mathf.Abs(rightLocal.x - leftLocal.x) * 0.92f;
+                float height = Mathf.Abs(topLocal.y - bottomLocal.y) * 0.92f;
 
                 Image cellImage = UITheme.CreateImage(transform, $"Cell_{i}", UITheme.LoadButtonSprite("button_square_flat"), EmptyColor);
-                UITheme.SetRect(cellImage.rectTransform, new Vector2(x, y + 150f), new Vector2(cellSize, cellSize));
+                UITheme.SetRect(cellImage.rectTransform, centerLocal, new Vector2(width, height));
 
                 var button = cellImage.gameObject.AddComponent<Button>();
                 button.targetGraphic = cellImage;
@@ -73,6 +85,13 @@ namespace LinkShot.UI
 
                 _cellImages[i] = cellImage;
             }
+        }
+
+        private Vector2 WorldToCanvasLocal(Vector2 worldPos, RectTransform rectTransform)
+        {
+            Vector3 screenPoint = _camera.WorldToScreenPoint(worldPos);
+            RectTransformUtility.ScreenPointToLocalPointInRectangle(rectTransform, screenPoint, null, out Vector2 localPoint);
+            return localPoint;
         }
 
         public void Show(int defenderPlayer, int remainingDisposableCards, Action<int, IReadOnlyList<int>> onConfirm)

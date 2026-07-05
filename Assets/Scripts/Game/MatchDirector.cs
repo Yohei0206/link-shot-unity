@@ -66,7 +66,16 @@ namespace LinkShot.Game
             }
 
             camera.orthographic = true;
-            camera.orthographicSize = FieldView.FieldHeight / 2f;
+
+            // Game Viewの縦横比がフィールド(3:4)と異なる場合でも全体が収まるようにレターボックス的に合わせる。
+            // これをFieldHeightだけで決めると、細長い画面でフィールド幅が画面外に切れてしまい、
+            // 壁配置UIとフィールド上の実際の壁位置がズレる原因になる。
+            float targetAspect = FieldView.FieldWidth / FieldView.FieldHeight;
+            float screenAspect = (float)Screen.width / Screen.height;
+            camera.orthographicSize = screenAspect >= targetAspect
+                ? FieldView.FieldHeight / 2f
+                : (FieldView.FieldHeight / 2f) * (targetAspect / screenAspect);
+
             camera.transform.position = new Vector3(0f, 0f, -10f);
         }
 
@@ -106,6 +115,7 @@ namespace LinkShot.Game
             _handoverScreen = CreateFullScreenPanel<HandoverScreen>(canvas.transform, "HandoverScreen");
             _medalSelectPanel = CreateFullScreenPanel<MedalSelectPanel>(canvas.transform, "MedalSelectPanel");
             _wallPlacementPanel = CreateFullScreenPanel<WallPlacementPanel>(canvas.transform, "WallPlacementPanel");
+            _wallPlacementPanel.Configure(_fieldView, Camera.main);
             _hudPanel = CreateFullScreenPanel<HudPanel>(canvas.transform, "HudPanel");
         }
 
