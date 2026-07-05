@@ -23,6 +23,7 @@ namespace LinkShot.UI
         private Text _remainingText;
         private Button _confirmButton;
         private readonly Image[] _cellIndicators = new Image[GameConfig.WallGridCellCount];
+        private readonly Image[] _cellHitAreas = new Image[GameConfig.WallGridCellCount];
 
         private FieldView _fieldView;
         private Camera _camera;
@@ -85,6 +86,7 @@ namespace LinkShot.UI
                 UITheme.SetRect(indicator.rectTransform, Vector2.zero, previewSize);
 
                 _cellIndicators[i] = indicator;
+                _cellHitAreas[i] = hitArea;
             }
         }
 
@@ -148,6 +150,7 @@ namespace LinkShot.UI
             for (int i = 0; i < _cellIndicators.Length; i++)
             {
                 Image indicator = _cellIndicators[i];
+                bool selected = _defaultCell == i || _disposableCells.Contains(i);
 
                 if (_defaultCell == i)
                 {
@@ -163,6 +166,9 @@ namespace LinkShot.UI
                 {
                     indicator.color = EmptyColor;
                 }
+
+                // 選択中はタップ判定の半透明背景を消し、実際の壁と同じ見た目（色味）になるようにする。
+                _cellHitAreas[i].color = selected ? EmptyColor : HitAreaColor;
             }
 
             _remainingText.text = $"使い捨て壁カード残り: {_remainingDisposable - _disposableCells.Count} / {_remainingDisposable}";
