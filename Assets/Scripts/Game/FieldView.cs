@@ -28,6 +28,7 @@ namespace LinkShot.Game
 
         private const string PhysicsSpritePath = "Field/Kenney/Physics/";
         private const string LaunchRingSpritePath = "UI/Kenney/PNG/Blue/Default/icon_outline_circle";
+        private const string WallSlotSpritePath = "UI/Kenney/PNG/Blue/Default/button_square_line";
 
         private readonly List<GameObject> _wallObjects = new List<GameObject>();
         private readonly List<GameObject> _bounceBoardObjects = new List<GameObject>();
@@ -36,6 +37,7 @@ namespace LinkShot.Game
         public void BuildStaticField()
         {
             BuildTargets();
+            BuildWallAreaBackground();
             BuildLaunchPositions();
             BuildOutOfFieldBoundary();
         }
@@ -74,6 +76,28 @@ namespace LinkShot.Game
                 ? Resources.Load<Sprite>(PhysicsSpritePath + "coinSilver")
                 : Resources.Load<Sprite>(PhysicsSpritePath + "starGold");
             AddVisual(go, radius * 2.4f, radius * 2.4f, Color.white, sprite);
+        }
+
+        /// <summary>
+        /// 壁配置エリア（GAME_RULES.md 7章の帯）を、盤面に常時埋め込まれた10マスの枠として表示する。
+        /// 実際の壁（ApplyWalls）はこの枠の上に薄いバーとして重なる。
+        /// </summary>
+        private void BuildWallAreaBackground()
+        {
+            Vector2 cellSize = GetWallCellSize();
+            Sprite slotSprite = Resources.Load<Sprite>(WallSlotSpritePath);
+
+            for (int i = 0; i < GameConfig.WallGridCellCount; i++)
+            {
+                Vector2 center = GetWallCellCenter(i);
+
+                var go = new GameObject($"WallSlot_{i}");
+                go.transform.SetParent(transform);
+                go.transform.position = center;
+
+                AddVisual(go, cellSize.x * 0.92f, cellSize.y * 0.8f, new Color(1f, 1f, 1f, 0.25f), slotSprite);
+                go.GetComponent<SpriteRenderer>().sortingOrder = -1;
+            }
         }
 
         private void BuildLaunchPositions()
