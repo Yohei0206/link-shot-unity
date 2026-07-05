@@ -2,15 +2,16 @@ using System;
 using System.Collections;
 using System.Collections.Generic;
 using LinkShot.Core;
+using LinkShot.UI;
 using UnityEngine;
 
 namespace LinkShot.Game
 {
     /// <summary>
     /// Match.unityに1つ置くHumble Object（ARCHITECTURE.md 2.3章）。Core.PhaseMachineを保持して駆動し、
-    /// FieldView/BallController/SlingshotInputに反映する。
-    /// メダル選択・壁配置UI（UI/層）は未実装のため、暫定的に自動選択で埋めて物理・ルールエンジンの
-    /// 結合動作を検証できるようにする。ショットフェーズのみ実際のスリングショット操作を受け付ける。
+    /// FieldView/BallController/SlingshotInput/UI/層のパネルに反映する。
+    /// メダル選択・壁配置は実際のUI操作（人間の入力）で決定する。発射ポジション決定とメダル効果解決は、
+    /// 対象選択が不要な暫定デッキで運用しているため自動で進める（DeckSelect画面実装後に見直す）。
     /// </summary>
     public class MatchDirector : MonoBehaviour
     {
@@ -29,6 +30,11 @@ namespace LinkShot.Game
         private BallController _ballController;
         private SlingshotInput _slingshotInput;
 
+        private HandoverScreen _handoverScreen;
+        private MedalSelectPanel _medalSelectPanel;
+        private WallPlacementPanel _wallPlacementPanel;
+        private HudPanel _hudPanel;
+
         private void Start()
         {
             SetUpCamera();
@@ -39,6 +45,7 @@ namespace LinkShot.Game
             _fieldView.BuildStaticField();
 
             CreateBall();
+            CreateUI();
 
             if (!MedalCatalog.IsValidDeck(PlaceholderDeck, out string error))
             {
@@ -89,17 +96,40 @@ namespace LinkShot.Game
             _ballObject.SetActive(false);
         }
 
+        private void CreateUI()
+        {
+            GameObject eventSystemGo = UITheme.CreateEventSystem();
+            eventSystemGo.transform.SetParent(transform);
+
+            Canvas canvas = UITheme.CreateCanvas("UICanvas", transform, 10);
+
+            _handoverScreen = CreateFullScreenPanel<HandoverScreen>(canvas.transform, "HandoverScreen");
+            _medalSelectPanel = CreateFullScreenPanel<MedalSelectPanel>(canvas.transform, "MedalSelectPanel");
+            _wallPlacementPanel = CreateFullScreenPanel<WallPlacementPanel>(canvas.transform, "WallPlacementPanel");
+            _hudPanel = CreateFullScreenPanel<HudPanel>(canvas.transform, "HudPanel");
+        }
+
+        private static T CreateFullScreenPanel<T>(Transform parent, string name) where T : Component
+        {
+            var go = new GameObject(name, typeof(RectTransform));
+            go.transform.SetParent(parent, false);
+            UITheme.Stretch((RectTransform)go.transform);
+            return go.AddComponent<T>();
+        }
+
         private IEnumerator RunMatch()
         {
             while (_state.Phase != Phase.MatchEnd)
             {
+                UpdateHudStatus();
+
                 switch (_state.Phase)
                 {
                     case Phase.MedalSet:
-                        AutoSetMedals();
+                        yield return RunMedalSetPhase();
                         break;
                     case Phase.WallPlacement:
-                        AutoPlaceWalls();
+                        yield return RunWallPlacementPhase();
                         break;
                     case Phase.PositionRoll:
                         AutoRollPosition();
@@ -111,29 +141,55 @@ namespace LinkShot.Game
                         yield return RunShotPhase();
                         break;
                     case Phase.ScoreResolve:
-                        LogScoreResolve();
-                        PhaseMachine.Dispatch(_state, new ProceedAction());
+                        yield return RunScoreResolvePhase();
                         break;
                 }
 
                 yield return null;
             }
 
+            UpdateHudStatus();
             LogMatchEnd();
         }
 
-        private void AutoSetMedals()
+        private IEnumerator RunMedalSetPhase()
         {
-            PhaseMachine.Dispatch(_state, new SetMedalAction(0, _state.Players[0].Hand[0]));
-            PhaseMachine.Dispatch(_state, new SetMedalAction(1, _state.Players[1].Hand[0]));
-            Debug.Log($"[Round {_state.Round}] メダルセット完了: P0={_state.Players[0].SetMedalId} / P1={_state.Players[1].SetMedalId}");
+            for (int player = 0; player < 2; player++)
+            {
+                int currentPlayer = player;
+
+                bool handoverDone = false;
+                _handoverScreen.Show($"プレイヤー{currentPlayer + 1}に交代してください\nタップしてメダルを選んでください", () => handoverDone = true);
+                yield return new WaitUntil(() => handoverDone);
+
+                bool selected = false;
+                _medalSelectPanel.Show(currentPlayer, _state.Players[currentPlayer].Hand, medalId =>
+                {
+                    PhaseMachine.Dispatch(_state, new SetMedalAction(currentPlayer, medalId));
+                    selected = true;
+                });
+                yield return new WaitUntil(() => selected);
+                _medalSelectPanel.Hide();
+            }
+
+            bool concealed = false;
+            _handoverScreen.Show("メダルが揃いました\nタップして壁配置に進みます", () => concealed = true);
+            yield return new WaitUntil(() => concealed);
         }
 
-        private void AutoPlaceWalls()
+        private IEnumerator RunWallPlacementPhase()
         {
-            int cell = UnityEngine.Random.Range(0, GameConfig.WallGridCellCount);
-            PhaseMachine.Dispatch(_state, new PlaceWallsAction(cell, new List<int>()));
-            _fieldView.ApplyWalls(_state.Field.DefenderWalls);
+            int defender = _state.CurrentDefender;
+            bool confirmed = false;
+
+            _wallPlacementPanel.Show(defender, _state.Players[defender].DisposableWallCardsRemaining, (defaultCell, disposableCells) =>
+            {
+                PhaseMachine.Dispatch(_state, new PlaceWallsAction(defaultCell, disposableCells));
+                _fieldView.ApplyWalls(_state.Field.DefenderWalls);
+                confirmed = true;
+            });
+
+            yield return new WaitUntil(() => confirmed);
         }
 
         private void AutoRollPosition()
@@ -226,18 +282,48 @@ namespace LinkShot.Game
             PhaseMachine.Dispatch(_state, new SubmitShotResultAction(outcome, zone));
         }
 
-        private void LogScoreResolve()
+        private IEnumerator RunScoreResolvePhase()
         {
             ShotRecord record = _state.History[_state.History.Count - 1];
-            Debug.Log($"[Round {record.Round} Shot {record.ShotIndex}] 得点: {record.Score} (攻撃側P{record.Attacker}, 効果発動={record.EffectActivated})");
+            string effectNote = record.EffectActivated ? "\n(攻撃効果 発動)" : string.Empty;
+            string message = $"ラウンド{record.Round} / ショット{record.ShotIndex + 1}\n"
+                + $"攻撃側: プレイヤー{record.Attacker + 1}\n"
+                + $"結果: {record.Outcome}\n"
+                + $"獲得得点: {record.Score}"
+                + effectNote;
+
+            bool proceed = false;
+            _hudPanel.ShowResult(message, () => proceed = true);
+            yield return new WaitUntil(() => proceed);
+
+            PhaseMachine.Dispatch(_state, new ProceedAction());
+        }
+
+        private void UpdateHudStatus()
+        {
+            string phaseLabel = _state.Phase switch
+            {
+                Phase.MedalSet => "メダル選択",
+                Phase.WallPlacement => "壁配置",
+                Phase.PositionRoll => "発射ポジション決定",
+                Phase.EffectResolve => "メダル効果解決",
+                Phase.Shot => "ショット",
+                Phase.ScoreResolve => "得点解決",
+                Phase.MatchEnd => "試合終了",
+                _ => string.Empty,
+            };
+
+            _hudPanel.UpdateStatus(_state.Round, GameConfig.RoundCount, _state.Players[0].Score, _state.Players[1].Score, phaseLabel);
         }
 
         private void LogMatchEnd()
         {
             int p0 = _state.Players[0].Score;
             int p1 = _state.Players[1].Score;
-            string result = _state.Winner == null ? "引き分け" : $"P{_state.Winner}の勝利";
+            string result = _state.Winner == null ? "引き分け" : $"プレイヤー{_state.Winner + 1}の勝利";
+            string message = $"試合終了\nP1: {p0}  -  P2: {p1}\n{result}";
             Debug.Log($"[試合終了] P0={p0} / P1={p1} → {result}");
+            _hudPanel.ShowResult(message, () => { });
         }
     }
 }
