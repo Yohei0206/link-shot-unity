@@ -30,6 +30,9 @@ namespace LinkShot.Game
         private const string LaunchRingSpritePath = "UI/Kenney/PNG/Blue/Default/icon_outline_circle";
         private const string WallSlotSpritePath = "UI/Kenney/PNG/Blue/Default/button_square_line";
 
+        private static readonly Color InactiveLaunchColor = new Color(1f, 1f, 1f, 0.35f);
+        private static readonly Color ActiveLaunchColor = new Color(1f, 0.65f, 0.05f, 0.95f);
+
         private readonly List<GameObject> _wallObjects = new List<GameObject>();
         private readonly List<GameObject> _bounceBoardObjects = new List<GameObject>();
         private readonly Dictionary<int, GameObject> _launchMarkers = new Dictionary<int, GameObject>();
@@ -124,8 +127,21 @@ namespace LinkShot.Game
                 marker.BaseRadius = radius;
 
                 Sprite ringSprite = Resources.Load<Sprite>(LaunchRingSpritePath);
-                AddVisual(go, radius * 2.2f, radius * 2.2f, new Color(1f, 1f, 1f, 0.7f), ringSprite);
+                AddVisual(go, radius * 2.2f, radius * 2.2f, InactiveLaunchColor, ringSprite);
                 _launchMarkers[position] = go;
+            }
+        }
+
+        /// <summary>
+        /// サイコロで決まった発射ポジションだけを目立つ色にする（GAME_RULES.md 6章）。
+        /// どこから撃てばいいか一目でわかるように、他の5つは薄い表示のままにする。
+        /// </summary>
+        public void HighlightLaunchPosition(int? activePosition)
+        {
+            foreach (KeyValuePair<int, GameObject> entry in _launchMarkers)
+            {
+                bool isActive = activePosition.HasValue && entry.Key == activePosition.Value;
+                entry.Value.GetComponent<SpriteRenderer>().color = isActive ? ActiveLaunchColor : InactiveLaunchColor;
             }
         }
 

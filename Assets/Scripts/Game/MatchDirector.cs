@@ -15,7 +15,7 @@ namespace LinkShot.Game
     /// </summary>
     public class MatchDirector : MonoBehaviour
     {
-        private const float BallBaseDiameter = 0.3f;
+        private const float BallBaseDiameter = 0.55f;
         private const float BaseLaunchSpeed = 8f;
 
         // UI/DeckSelect未実装のための暫定デッキ（対象選択が不要な5種で統一）。
@@ -192,6 +192,8 @@ namespace LinkShot.Game
             int defender = _state.CurrentDefender;
             bool confirmed = false;
 
+            _fieldView.HighlightLaunchPosition(null);
+
             _wallPlacementPanel.Show(defender, _state.Players[defender].DisposableWallCardsRemaining, (defaultCell, disposableCells) =>
             {
                 PhaseMachine.Dispatch(_state, new PlaceWallsAction(defaultCell, disposableCells));
@@ -205,6 +207,7 @@ namespace LinkShot.Game
         private void AutoRollPosition()
         {
             PhaseMachine.Dispatch(_state, new RollPositionAction());
+            _fieldView.HighlightLaunchPosition(_state.Field.LaunchPosition);
             Debug.Log($"[Round {_state.Round} Shot {_state.ShotIndex}] 発射ポジション: {_state.Field.LaunchPosition}");
         }
 
@@ -321,7 +324,7 @@ namespace LinkShot.Game
                 Phase.WallPlacement => "壁配置",
                 Phase.PositionRoll => "発射ポジション決定",
                 Phase.EffectResolve => "メダル効果解決",
-                Phase.Shot => "ショット",
+                Phase.Shot => $"ここから発射！（発射ポジション{_state.Field.LaunchPosition}）",
                 Phase.ScoreResolve => "得点解決",
                 Phase.MatchEnd => "試合終了",
                 _ => string.Empty,

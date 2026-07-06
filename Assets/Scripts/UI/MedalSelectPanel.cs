@@ -9,6 +9,7 @@ namespace LinkShot.UI
     /// <summary>
     /// (1) 準備フェーズ: 手札のメダルをボタン一覧で表示し、1枚選ばせる（GAME_RULES.md 3章）。
     /// 選択後はHandoverScreenで秘匿してから相手に手番を渡す想定（MatchDirectorが制御）。
+    /// 属性（Element）は色分け＋カタカナ表記で見分けやすくする。
     /// </summary>
     public class MedalSelectPanel : MonoBehaviour
     {
@@ -54,6 +55,7 @@ namespace LinkShot.UI
 
                 Button button = UITheme.CreateButton(_buttonContainer, $"Medal_{medalId}", BuildLabel(medal), () => onSelected?.Invoke(medalId));
                 UITheme.SetRect(button.GetComponent<RectTransform>(), new Vector2(startX + i * spacing, 0), new Vector2(180, 260));
+                button.GetComponent<Image>().color = ElementColor(medal.Element);
 
                 if (medal.Rarity == Rarity.Legendary)
                 {
@@ -74,14 +76,64 @@ namespace LinkShot.UI
 
         private static string BuildLabel(Medal medal)
         {
-            string rarity = medal.Rarity switch
-            {
-                Rarity.Legendary => "LEGEND",
-                Rarity.Rare => "RARE",
-                _ => "COMMON",
-            };
+            return $"{RarityKatakana(medal.Rarity)}\n{ElementKatakana(medal.Element)}\n{EffectJapanese(medal.Effect)}";
+        }
 
-            return $"{rarity}\n{medal.Element}\n{medal.Effect}";
+        /// <summary>属性ごとの色分け（三すくみを見分けやすくする。CLAUDE.md用語集: ALPHA/BETA/GAMMA）。</summary>
+        private static Color ElementColor(Element element)
+        {
+            return element switch
+            {
+                Element.ALPHA => new Color(0.85f, 0.3f, 0.3f),
+                Element.BETA => new Color(0.3f, 0.5f, 0.9f),
+                Element.GAMMA => new Color(0.35f, 0.75f, 0.4f),
+                _ => Color.white,
+            };
+        }
+
+        private static string ElementKatakana(Element element)
+        {
+            return element switch
+            {
+                Element.ALPHA => "アルファ",
+                Element.BETA => "ベータ",
+                Element.GAMMA => "ガンマ",
+                _ => element.ToString(),
+            };
+        }
+
+        private static string RarityKatakana(Rarity rarity)
+        {
+            return rarity switch
+            {
+                Rarity.Legendary => "レジェンド",
+                Rarity.Rare => "レア",
+                _ => "コモン",
+            };
+        }
+
+        /// <summary>効果名の日本語表記（MEDALS.md 3-4章の効果名に準拠）。</summary>
+        private static string EffectJapanese(EffectId effect)
+        {
+            return effect switch
+            {
+                EffectId.WallRemove => "壁除去",
+                EffectId.BounceBoard => "バウンド板",
+                EffectId.RangeBoost => "範囲拡張",
+                EffectId.WallShift => "壁移動",
+                EffectId.GhostBall => "すり抜け",
+                EffectId.WideGate => "的の拡大",
+                EffectId.Reroll => "振り直し",
+                EffectId.CurveShot => "軌道操作",
+                EffectId.PowerShot => "初速アップ",
+                EffectId.ScoreDouble => "得点2倍",
+                EffectId.SafetyNet => "保険",
+                EffectId.MiniBall => "ボール縮小",
+                EffectId.DoubleShot => "2連射",
+                EffectId.PositionChoice => "出目選択",
+                EffectId.WallReturn => "壁カード強奪",
+                _ => effect.ToString(),
+            };
         }
     }
 }
