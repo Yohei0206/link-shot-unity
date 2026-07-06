@@ -179,7 +179,7 @@ public interface IMedalEffect {
 | Match | フィールド＋uGUIオーバーレイ（スコア/ラウンド/メダル履歴/フェーズ案内） |
 | Result | 最終スコアと勝敗、ショット履歴の振り返り |
 
-- 縦持ちスマホ基準のレイアウト（unityroomはPCブラウザ中心だが、Canvas Scalerで両対応する）
+- 横持ち16:9基準のレイアウト（unityroomはPCブラウザ中心のため。Canvas Scalerでスマホ等の他アスペクト比にも対応する）
 - ローカル対戦の「伏せてセット」はデバイス受け渡し画面（HandoverScreen）で秘匿する
 
 ## 6. パフォーマンス・ビルド要件
