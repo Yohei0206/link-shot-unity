@@ -57,11 +57,8 @@ namespace LinkShot.UI
                 UITheme.SetRect(button.GetComponent<RectTransform>(), new Vector2(startX + i * spacing, 0), new Vector2(180, 260));
                 button.GetComponent<Image>().color = ElementColor(medal.Element);
 
-                if (medal.Rarity == Rarity.Legendary)
-                {
-                    Image rankIcon = UITheme.CreateImage(button.transform, "RankIcon", UITheme.LoadGoldRank(0), Color.white);
-                    UITheme.SetRect(rankIcon.rectTransform, new Vector2(0, 95), new Vector2(56, 56));
-                }
+                Text starsText = UITheme.CreateText(button.transform, "Stars", RarityStars(medal.Rarity), 26, new Color(0.85f, 0.65f, 0.05f), TextAnchor.MiddleCenter);
+                UITheme.SetRect(starsText.rectTransform, new Vector2(0, 100), new Vector2(170, 40));
 
                 _buttons.Add(button.gameObject);
             }
@@ -76,7 +73,7 @@ namespace LinkShot.UI
 
         private static string BuildLabel(Medal medal)
         {
-            return $"{RarityKatakana(medal.Rarity)}\n{ElementKatakana(medal.Element)}\n{EffectJapanese(medal.Effect)}";
+            return $"{ElementKatakana(medal.Element)}\n{EffectJapanese(medal.Effect)}";
         }
 
         /// <summary>属性ごとの色分け（三すくみを見分けやすくする。CLAUDE.md用語集: ALPHA/BETA/GAMMA）。</summary>
@@ -102,14 +99,16 @@ namespace LinkShot.UI
             };
         }
 
-        private static string RarityKatakana(Rarity rarity)
+        /// <summary>レアリティを星の数で表現する（文字ラベルではなく★の個数で見分ける）。</summary>
+        private static string RarityStars(Rarity rarity)
         {
-            return rarity switch
+            int count = rarity switch
             {
-                Rarity.Legendary => "レジェンド",
-                Rarity.Rare => "レア",
-                _ => "コモン",
+                Rarity.Legendary => 3,
+                Rarity.Rare => 2,
+                _ => 1,
             };
+            return new string('★', count);
         }
 
         /// <summary>効果名の日本語表記（MEDALS.md 3-4章の効果名に準拠）。</summary>

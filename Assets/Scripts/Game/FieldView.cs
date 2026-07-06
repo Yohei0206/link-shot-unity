@@ -13,6 +13,9 @@ namespace LinkShot.Game
         public const float FieldWidth = 6f;
         public const float FieldHeight = 8f;
 
+        // 的帯・壁帯だけは発射エリアより横幅を広く使う（見た目の帯構成、GAME_RULES.md 7章とは別の演出調整）。
+        public const float WideBandWidth = 9f;
+
         // 壁1枚の見た目サイズ（壁グリッド1セルに対する比率）。UI/WallPlacementPanelのプレビューもこれを参照し、
         // 隣接セルに置いたときに隙間ができる見た目に合わせる。
         public const float WallVisualWidthRatio = 0.5f;
@@ -56,8 +59,8 @@ namespace LinkShot.Game
             float centerRadius = FieldWidth * GameConfig.CenterZoneRadiusRatio;
             float bandCenterY = FractionToWorldY(TargetBandBottomFraction / 2f);
 
-            CreateTarget(TargetZoneId.TopLeftCorner, new Vector2(-FieldWidth * 0.32f, bandCenterY + 0.3f), cornerRadius, Color.white);
-            CreateTarget(TargetZoneId.TopRightCorner, new Vector2(FieldWidth * 0.32f, bandCenterY + 0.3f), cornerRadius, Color.white);
+            CreateTarget(TargetZoneId.TopLeftCorner, new Vector2(-WideBandWidth * 0.32f, bandCenterY + 0.3f), cornerRadius, Color.white);
+            CreateTarget(TargetZoneId.TopRightCorner, new Vector2(WideBandWidth * 0.32f, bandCenterY + 0.3f), cornerRadius, Color.white);
             CreateTarget(TargetZoneId.Center, new Vector2(0f, bandCenterY - 0.3f), centerRadius, Color.white);
 
             BuildBonusTargets();
@@ -76,7 +79,7 @@ namespace LinkShot.Game
             float[] rowY = { topRowY, bottomRowY };
 
             const int columns = 5;
-            float usableWidth = FieldWidth - radius * 3f;
+            float usableWidth = WideBandWidth - radius * 3f;
 
             for (int i = 0; i < GameConfig.BonusZoneCount; i++)
             {
@@ -186,7 +189,8 @@ namespace LinkShot.Game
 
             var collider = go.AddComponent<BoxCollider2D>();
             collider.isTrigger = true;
-            collider.size = new Vector2(FieldWidth * 1.1f, FieldHeight * 1.1f);
+            float boundaryWidth = Mathf.Max(FieldWidth, WideBandWidth);
+            collider.size = new Vector2(boundaryWidth * 1.1f, FieldHeight * 1.1f);
 
             go.AddComponent<OutOfFieldMarker>();
         }
@@ -201,7 +205,7 @@ namespace LinkShot.Game
 
             _wallObjects.Clear();
 
-            float cellWidth = FieldWidth / GameConfig.WallGridColumns;
+            float cellWidth = WideBandWidth / GameConfig.WallGridColumns;
             float cellHeight = WallBandHeight() / GameConfig.WallGridRows;
             float wallWidth = cellWidth * WallVisualWidthRatio;
             float wallHeight = cellHeight * WallVisualHeightRatio;
@@ -281,7 +285,7 @@ namespace LinkShot.Game
         /// <summary>壁グリッド1セル分のワールドサイズ（幅・高さ）。</summary>
         public Vector2 GetWallCellSize()
         {
-            float cellWidth = FieldWidth / GameConfig.WallGridColumns;
+            float cellWidth = WideBandWidth / GameConfig.WallGridColumns;
             float cellHeight = WallBandHeight() / GameConfig.WallGridRows;
             return new Vector2(cellWidth, cellHeight);
         }
@@ -309,11 +313,11 @@ namespace LinkShot.Game
             int row = cellIndex / columns;
             int col = cellIndex % columns;
 
-            float cellWidth = FieldWidth / columns;
+            float cellWidth = WideBandWidth / columns;
             float cellHeight = WallBandHeight() / GameConfig.WallGridRows;
             float bandTopY = FractionToWorldY(TargetBandBottomFraction);
 
-            float x = -FieldWidth / 2f + cellWidth * (col + 0.5f);
+            float x = -WideBandWidth / 2f + cellWidth * (col + 0.5f);
             float y = bandTopY - cellHeight * (row + 0.5f);
             return new Vector2(x, y);
         }
