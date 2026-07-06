@@ -83,11 +83,14 @@ namespace LinkShot.Game
 
         /// <summary>
         /// 壁配置エリア（GAME_RULES.md 7章の帯）を、盤面に常時埋め込まれた10マスの枠として表示する。
-        /// 実際の壁（ApplyWalls）はこの枠の上に薄いバーとして重なる。
+        /// 実際に置かれる壁（ApplyWalls）と同じ幅・高さの枠にして、選択時に見える「壁を置ける範囲」と
+        /// 実際に置かれる壁の範囲・当たり判定が一致するようにする。
         /// </summary>
         private void BuildWallAreaBackground()
         {
             Vector2 cellSize = GetWallCellSize();
+            float slotWidth = cellSize.x * WallVisualWidthRatio;
+            float slotHeight = cellSize.y * WallVisualHeightRatio;
             Sprite slotSprite = Resources.Load<Sprite>(WallSlotSpritePath);
 
             for (int i = 0; i < GameConfig.WallGridCellCount; i++)
@@ -98,7 +101,7 @@ namespace LinkShot.Game
                 go.transform.SetParent(transform);
                 go.transform.position = center;
 
-                AddVisual(go, cellSize.x * 0.92f, cellSize.y * 0.8f, new Color(1f, 1f, 1f, 0.25f), slotSprite);
+                AddVisual(go, slotWidth, slotHeight, new Color(1f, 1f, 1f, 0.25f), slotSprite);
                 go.GetComponent<SpriteRenderer>().sortingOrder = -1;
             }
         }
