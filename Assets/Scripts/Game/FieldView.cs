@@ -66,27 +66,35 @@ namespace LinkShot.Game
             BuildBonusTargets();
         }
 
+        // 見た目のにぎやかし・得点バリエーション用に追加した10個の小さい的の相対座標（【暫定】得点はGameConfig.BonusZoneScore）。
+        // グリッド状に並べると角の的・中央の的と重なる、または詰まって見えるため、
+        // 他の的およびボーナス的同士が重ならないよう間隔を空けつつ手動でばらけさせた配置にする。
+        private static readonly Vector2[] BonusOffsets =
+        {
+            new Vector2(-4.0f, 0.40f),
+            new Vector2(-3.6f, -0.50f),
+            new Vector2(-2.0f, 0.55f),
+            new Vector2(-1.6f, -0.55f),
+            new Vector2(-0.8f, 0.10f),
+            new Vector2(0.9f, 0.15f),
+            new Vector2(1.7f, -0.58f),
+            new Vector2(2.1f, 0.58f),
+            new Vector2(3.7f, -0.45f),
+            new Vector2(4.1f, 0.35f),
+        };
+
         /// <summary>
         /// 見た目のにぎやかし・得点バリエーション用に追加した10個の小さい的（【暫定】得点はGameConfig.BonusZoneScore）。
-        /// 2列×5個で的帯（GAME_RULES.md 7章）の中に収める。
+        /// 的帯（GAME_RULES.md 7章）の中で、角・中央の的と重ならないようまばらに配置する。
         /// </summary>
         private void BuildBonusTargets()
         {
             float radius = FieldWidth * GameConfig.BonusZoneRadiusRatio;
-            float bandBottom = FractionToWorldY(TargetBandBottomFraction);
-            float bottomRowY = bandBottom + radius * 1.4f;
-            float topRowY = bottomRowY + radius * 3.2f;
-            float[] rowY = { topRowY, bottomRowY };
+            float baseY = FractionToWorldY(TargetBandBottomFraction / 2f);
 
-            const int columns = 5;
-            float usableWidth = WideBandWidth - radius * 3f;
-
-            for (int i = 0; i < GameConfig.BonusZoneCount; i++)
+            foreach (Vector2 offset in BonusOffsets)
             {
-                int row = i / columns;
-                int col = i % columns;
-                float x = -usableWidth / 2f + usableWidth / (columns - 1) * col;
-                CreateTarget(TargetZoneId.Bonus, new Vector2(x, rowY[row]), radius, new Color(1f, 0.55f, 0.15f));
+                CreateTarget(TargetZoneId.Bonus, new Vector2(offset.x, baseY + offset.y), radius, new Color(1f, 0.55f, 0.15f));
             }
         }
 
