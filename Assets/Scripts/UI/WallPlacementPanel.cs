@@ -36,16 +36,16 @@ namespace LinkShot.UI
         private void Awake()
         {
             Image instructionBacking = UITheme.CreateImage(transform, "InstructionBacking", null, new Color(0f, 0f, 0f, 0.5f));
-            UITheme.SetRect(instructionBacking.rectTransform, new Vector2(0, 780), new Vector2(1080, 200));
+            UITheme.SetRect(instructionBacking.rectTransform, new Vector2(0, 430), new Vector2(1920, 130));
 
-            _titleText = UITheme.CreateText(transform, "Title", string.Empty, 36, Color.white, TextAnchor.MiddleCenter);
-            UITheme.SetRect(_titleText.rectTransform, new Vector2(0, 820), new Vector2(1000, 80));
+            _titleText = UITheme.CreateText(transform, "Title", string.Empty, 32, Color.white, TextAnchor.MiddleCenter);
+            UITheme.SetRect(_titleText.rectTransform, new Vector2(0, 455), new Vector2(1400, 60));
 
-            _remainingText = UITheme.CreateText(transform, "Remaining", string.Empty, 28, Color.white, TextAnchor.MiddleCenter);
-            UITheme.SetRect(_remainingText.rectTransform, new Vector2(0, 740), new Vector2(1000, 60));
+            _remainingText = UITheme.CreateText(transform, "Remaining", string.Empty, 24, Color.white, TextAnchor.MiddleCenter);
+            UITheme.SetRect(_remainingText.rectTransform, new Vector2(0, 405), new Vector2(1400, 50));
 
             _confirmButton = UITheme.CreateButton(transform, "ConfirmButton", "この配置で確定", HandleConfirm);
-            UITheme.SetRect(_confirmButton.GetComponent<RectTransform>(), new Vector2(0, -650), new Vector2(500, 140));
+            UITheme.SetRect(_confirmButton.GetComponent<RectTransform>(), new Vector2(0, -460), new Vector2(500, 130));
 
             gameObject.SetActive(false);
         }

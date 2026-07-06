@@ -17,8 +17,8 @@ namespace LinkShot.UI
 
         private void Awake()
         {
-            _statusText = UITheme.CreateText(transform, "Status", string.Empty, 30, Color.white, TextAnchor.UpperCenter);
-            UITheme.SetRect(_statusText.rectTransform, new Vector2(0, 900), new Vector2(1000, 120));
+            _statusText = UITheme.CreateText(transform, "Status", string.Empty, 26, Color.white, TextAnchor.UpperCenter);
+            UITheme.SetRect(_statusText.rectTransform, new Vector2(0, 515), new Vector2(1600, 60));
 
             var overlayGo = new GameObject("ResultOverlay", typeof(RectTransform));
             overlayGo.transform.SetParent(transform, false);

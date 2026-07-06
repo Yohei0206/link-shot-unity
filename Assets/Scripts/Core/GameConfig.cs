@@ -31,8 +31,11 @@ namespace LinkShot.Core
         // --- 得点システム (GAME_RULES.md 5章) ---
         public const int CornerZoneScore = 500;
         public const int CenterZoneScore = 200;
+        public const int BonusZoneScore = 100; // 追加した10個の的（見た目のにぎやかしを兼ねる）
         public const float CornerZoneRadiusRatio = 0.05f; // フィールド幅比
         public const float CenterZoneRadiusRatio = 0.08f; // フィールド幅比
+        public const float BonusZoneRadiusRatio = 0.03f; // フィールド幅比
+        public const int BonusZoneCount = 10;
 
         // --- フィールドレイアウト (GAME_RULES.md 7章) ---
         public const int WallGridColumns = 5;

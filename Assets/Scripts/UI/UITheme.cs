@@ -40,7 +40,7 @@ namespace LinkShot.UI
 
             var scaler = go.GetComponent<CanvasScaler>();
             scaler.uiScaleMode = CanvasScaler.ScaleMode.ScaleWithScreenSize;
-            scaler.referenceResolution = new Vector2(1080, 1920); // 縦持ちスマホ基準（CLAUDE.md/ARCHITECTURE.md 5章）
+            scaler.referenceResolution = new Vector2(1920, 1080); // 横持ち16:9基準
             scaler.matchWidthOrHeight = 0.5f;
 
             return canvas;

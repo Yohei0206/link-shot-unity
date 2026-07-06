@@ -23,7 +23,7 @@ namespace LinkShot.UI
             UITheme.Stretch(background.rectTransform);
 
             _titleText = UITheme.CreateText(transform, "Title", string.Empty, 44, Color.white, TextAnchor.MiddleCenter);
-            UITheme.SetRect(_titleText.rectTransform, new Vector2(0, 700), new Vector2(1000, 120));
+            UITheme.SetRect(_titleText.rectTransform, new Vector2(0, 400), new Vector2(1400, 100));
 
             var containerGo = new GameObject("Buttons", typeof(RectTransform));
             containerGo.transform.SetParent(transform, false);

@@ -19,6 +19,7 @@ namespace LinkShot.Core
                 TargetZoneId.TopLeftCorner => GameConfig.CornerZoneScore,
                 TargetZoneId.TopRightCorner => GameConfig.CornerZoneScore,
                 TargetZoneId.Center => GameConfig.CenterZoneScore,
+                TargetZoneId.Bonus => GameConfig.BonusZoneScore,
                 _ => 0,
             };
         }

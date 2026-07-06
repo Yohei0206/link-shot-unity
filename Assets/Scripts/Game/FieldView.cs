@@ -56,14 +56,40 @@ namespace LinkShot.Game
             float centerRadius = FieldWidth * GameConfig.CenterZoneRadiusRatio;
             float bandCenterY = FractionToWorldY(TargetBandBottomFraction / 2f);
 
-            CreateTarget(TargetZoneId.TopLeftCorner, new Vector2(-FieldWidth * 0.32f, bandCenterY + 0.3f), cornerRadius);
-            CreateTarget(TargetZoneId.TopRightCorner, new Vector2(FieldWidth * 0.32f, bandCenterY + 0.3f), cornerRadius);
-            CreateTarget(TargetZoneId.Center, new Vector2(0f, bandCenterY - 0.3f), centerRadius);
+            CreateTarget(TargetZoneId.TopLeftCorner, new Vector2(-FieldWidth * 0.32f, bandCenterY + 0.3f), cornerRadius, Color.white);
+            CreateTarget(TargetZoneId.TopRightCorner, new Vector2(FieldWidth * 0.32f, bandCenterY + 0.3f), cornerRadius, Color.white);
+            CreateTarget(TargetZoneId.Center, new Vector2(0f, bandCenterY - 0.3f), centerRadius, Color.white);
+
+            BuildBonusTargets();
         }
 
-        private void CreateTarget(TargetZoneId zoneId, Vector2 position, float radius)
+        /// <summary>
+        /// 見た目のにぎやかし・得点バリエーション用に追加した10個の小さい的（【暫定】得点はGameConfig.BonusZoneScore）。
+        /// 2列×5個で的帯（GAME_RULES.md 7章）の中に収める。
+        /// </summary>
+        private void BuildBonusTargets()
         {
-            var go = new GameObject($"Target_{zoneId}");
+            float radius = FieldWidth * GameConfig.BonusZoneRadiusRatio;
+            float bandBottom = FractionToWorldY(TargetBandBottomFraction);
+            float bottomRowY = bandBottom + radius * 1.4f;
+            float topRowY = bottomRowY + radius * 3.2f;
+            float[] rowY = { topRowY, bottomRowY };
+
+            const int columns = 5;
+            float usableWidth = FieldWidth - radius * 3f;
+
+            for (int i = 0; i < GameConfig.BonusZoneCount; i++)
+            {
+                int row = i / columns;
+                int col = i % columns;
+                float x = -usableWidth / 2f + usableWidth / (columns - 1) * col;
+                CreateTarget(TargetZoneId.Bonus, new Vector2(x, rowY[row]), radius, new Color(1f, 0.55f, 0.15f));
+            }
+        }
+
+        private void CreateTarget(TargetZoneId zoneId, Vector2 position, float radius, Color tint)
+        {
+            var go = new GameObject($"Target_{zoneId}_{position.x:0.00}_{position.y:0.00}");
             go.transform.SetParent(transform);
             go.transform.position = position;
 
@@ -75,10 +101,13 @@ namespace LinkShot.Game
             marker.ZoneId = zoneId;
             marker.BaseRadius = radius;
 
-            Sprite sprite = zoneId == TargetZoneId.Center
-                ? Resources.Load<Sprite>(PhysicsSpritePath + "coinSilver")
-                : Resources.Load<Sprite>(PhysicsSpritePath + "starGold");
-            AddVisual(go, radius * 2.4f, radius * 2.4f, Color.white, sprite);
+            Sprite sprite = zoneId switch
+            {
+                TargetZoneId.Center => Resources.Load<Sprite>(PhysicsSpritePath + "coinSilver"),
+                TargetZoneId.Bonus => Resources.Load<Sprite>(PhysicsSpritePath + "coinSilver"),
+                _ => Resources.Load<Sprite>(PhysicsSpritePath + "starGold"),
+            };
+            AddVisual(go, radius * 2.4f, radius * 2.4f, tint, sprite);
         }
 
         /// <summary>
@@ -129,8 +158,9 @@ namespace LinkShot.Game
                 marker.Position = position;
                 marker.BaseRadius = radius;
 
+                // リング見た目を当たり判定より小さめにして、隣同士の間隔が空いて見えるようにする。
                 Sprite ringSprite = Resources.Load<Sprite>(LaunchRingSpritePath);
-                AddVisual(go, radius * 2.2f, radius * 2.2f, InactiveLaunchColor, ringSprite);
+                AddVisual(go, radius * 1.6f, radius * 1.6f, InactiveLaunchColor, ringSprite);
                 _launchMarkers[position] = go;
             }
         }

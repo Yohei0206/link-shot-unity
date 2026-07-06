@@ -51,12 +51,13 @@ namespace LinkShot.Core
         MatchEnd,
     }
 
-    /// <summary>的（ターゲットゾーン）の識別子（GAME_RULES.md 5.1章）。</summary>
+    /// <summary>的（ターゲットゾーン）の識別子（GAME_RULES.md 5.1章）。BonusはGAME_RULES.md未記載の追加的（得点は控えめ）。</summary>
     public enum TargetZoneId
     {
         TopLeftCorner,
         TopRightCorner,
         Center,
+        Bonus,
     }
 
     /// <summary>1ショットの最終的な着弾結果の種別（GAME_RULES.md 5.2章）。</summary>
