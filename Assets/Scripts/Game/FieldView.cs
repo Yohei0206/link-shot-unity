@@ -141,8 +141,7 @@ namespace LinkShot.Game
                 go.transform.SetParent(transform);
                 go.transform.position = center;
 
-                AddVisual(go, slotWidth, slotHeight, new Color(1f, 1f, 1f, 0.25f), slotSprite);
-                go.GetComponent<SpriteRenderer>().sortingOrder = -1;
+                AddVisual(go, slotWidth, slotHeight, new Color(1f, 1f, 1f, 0.25f), slotSprite).sortingOrder = -1;
             }
         }
 
@@ -185,7 +184,7 @@ namespace LinkShot.Game
             foreach (KeyValuePair<int, GameObject> entry in _launchMarkers)
             {
                 bool isActive = activePosition.HasValue && entry.Key == activePosition.Value;
-                entry.Value.GetComponent<SpriteRenderer>().color = isActive ? ActiveLaunchColor : InactiveLaunchColor;
+                entry.Value.GetComponentInChildren<SpriteRenderer>().color = isActive ? ActiveLaunchColor : InactiveLaunchColor;
             }
         }
 
@@ -337,12 +336,26 @@ namespace LinkShot.Game
             return new Vector2(x, y);
         }
 
-        private static void AddVisual(GameObject go, float width, float height, Color color, Sprite sprite = null)
+        /// <summary>
+        /// 見た目（SpriteRenderer）を子オブジェクトとして追加し、指定したwidth x height（ワールド単位）で
+        /// 実際に見える大きさになるようにスケールする。
+        /// Kenneyスプライトはpixels per unitやピクセルサイズ次第でネイティブサイズが1x1ワールド単位ではないため、
+        /// 親（go）自身のlocalScaleを直接width/heightにしてしまうと、goに付いたCollider2Dのサイズ・半径まで
+        /// 意図せず一緒にスケールされてしまう（例: 壁の当たり判定が見た目とズレて隣の壁と重なる）。
+        /// 見た目のスケールを子オブジェクトに閉じ込めることで、goの当たり判定はワールド単位の値をそのまま使える。
+        /// </summary>
+        private static SpriteRenderer AddVisual(GameObject go, float width, float height, Color color, Sprite sprite = null)
         {
-            var renderer = go.AddComponent<SpriteRenderer>();
+            var visualGo = new GameObject("Visual");
+            visualGo.transform.SetParent(go.transform, false);
+
+            var renderer = visualGo.AddComponent<SpriteRenderer>();
             renderer.sprite = sprite != null ? sprite : GetSharedSquareSprite();
             renderer.color = color;
-            go.transform.localScale = new Vector3(width, height, 1f);
+
+            Vector2 nativeSize = renderer.sprite.bounds.size;
+            visualGo.transform.localScale = new Vector3(width / nativeSize.x, height / nativeSize.y, 1f);
+            return renderer;
         }
 
         /// <summary>他のGame/層クラス（Ball生成等）からも使う共有の1x1白プレースホルダースプライト。</summary>

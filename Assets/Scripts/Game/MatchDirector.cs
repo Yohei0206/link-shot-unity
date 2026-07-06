@@ -27,6 +27,7 @@ namespace LinkShot.Game
         private GameState _state;
         private FieldView _fieldView;
         private GameObject _ballObject;
+        private GameObject _ballVisualObject;
         private BallController _ballController;
         private SlingshotInput _slingshotInput;
 
@@ -85,25 +86,38 @@ namespace LinkShot.Game
             _ballObject = new GameObject("Ball");
             _ballObject.transform.SetParent(transform);
 
-            var renderer = _ballObject.AddComponent<SpriteRenderer>();
-            renderer.sprite = Resources.Load<Sprite>("Field/Kenney/Sports/ball_soccer1");
-            renderer.color = Color.white;
-            renderer.sortingOrder = 10;
-
             var rigidbody = _ballObject.AddComponent<Rigidbody2D>();
             rigidbody.gravityScale = 0f;
             rigidbody.linearDamping = 0f;
             rigidbody.collisionDetectionMode = CollisionDetectionMode2D.Continuous;
 
             var collider = _ballObject.AddComponent<CircleCollider2D>();
-            collider.radius = 0.5f;
             collider.sharedMaterial = PhysicsMaterials.Bouncy;
 
             _ballController = _ballObject.AddComponent<BallController>();
             _slingshotInput = _ballObject.AddComponent<SlingshotInput>();
 
-            _ballObject.transform.localScale = Vector3.one * BallBaseDiameter;
+            // 見た目のスケールは子オブジェクトに閉じ込める。ball_soccer1はネイティブサイズが1x1ワールド単位
+            // ではないため、この親（_ballObject）自身をスケールすると、CircleCollider2Dの当たり判定の大きさ
+            // まで意図せず一緒にスケールされてしまう。
+            _ballVisualObject = new GameObject("Visual");
+            _ballVisualObject.transform.SetParent(_ballObject.transform, false);
+            var renderer = _ballVisualObject.AddComponent<SpriteRenderer>();
+            renderer.sprite = Resources.Load<Sprite>("Field/Kenney/Sports/ball_soccer1");
+            renderer.color = Color.white;
+            renderer.sortingOrder = 10;
+
+            ApplyBallDiameter(BallBaseDiameter);
             _ballObject.SetActive(false);
+        }
+
+        private void ApplyBallDiameter(float diameter)
+        {
+            _ballObject.GetComponent<CircleCollider2D>().radius = diameter / 2f;
+
+            var renderer = _ballVisualObject.GetComponent<SpriteRenderer>();
+            Vector2 nativeSize = renderer.sprite.bounds.size;
+            _ballVisualObject.transform.localScale = new Vector3(diameter / nativeSize.x, diameter / nativeSize.y, 1f);
         }
 
         private void CreateUI()
@@ -239,7 +253,7 @@ namespace LinkShot.Game
             ShotModifier modifier = _state.CurrentShotModifier;
             _ballController.PassThroughFirstWall = modifier.PassThroughFirstWall;
             _slingshotInput.MaxLaunchSpeed = BaseLaunchSpeed * modifier.VelocityMultiplier;
-            _ballObject.transform.localScale = Vector3.one * BallBaseDiameter * modifier.BallSizeMultiplier;
+            ApplyBallDiameter(BallBaseDiameter * modifier.BallSizeMultiplier);
         }
 
         private IEnumerator RunSingleAttempt(Vector2 origin)
