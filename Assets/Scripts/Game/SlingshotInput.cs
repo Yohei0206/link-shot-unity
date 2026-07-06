@@ -15,6 +15,9 @@ namespace LinkShot.Game
         public float MaxLaunchSpeed = 10f;
         public float VelocityMultiplier = 1f;
 
+        /// <summary>MaxPullDistanceに対する比率。これ未満の引っ張りは誤タップ/ノイズとみなして発射しない。</summary>
+        public float MinPullRatio = 0.15f;
+
         public event Action Launched;
 
         private Rigidbody2D _rigidbody;
@@ -91,10 +94,20 @@ namespace LinkShot.Game
         private void Release()
         {
             Vector2 pull = (Vector2)transform.position - _launchOrigin;
-            float power = Mathf.Clamp01(pull.magnitude / MaxPullDistance);
-            Vector2 launchDirection = pull.sqrMagnitude > 0.0001f ? -pull.normalized : Vector2.up;
+            float pullRatio = pull.magnitude / MaxPullDistance;
 
             transform.position = _launchOrigin;
+
+            if (pullRatio < MinPullRatio)
+            {
+                // 誤タップ・ごくわずかなドラッグはノイズとして無視する。摩擦のないフィールドでは
+                // どんなに小さい初速でも最終的に場外に出てしまい、ショットが無駄になるため。
+                return;
+            }
+
+            float power = Mathf.Clamp01(pullRatio);
+            Vector2 launchDirection = -pull.normalized;
+
             _rigidbody.linearVelocity = launchDirection * power * MaxLaunchSpeed * VelocityMultiplier;
             _launched = true;
             Launched?.Invoke();

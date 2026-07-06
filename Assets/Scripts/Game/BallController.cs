@@ -37,9 +37,18 @@ namespace LinkShot.Game
             if (target != null)
             {
                 Resolve(ShotOutcomeKind.TargetHit, target.ZoneId);
+            }
+        }
+
+        private void OnTriggerExit2D(Collider2D other)
+        {
+            if (_resolved)
+            {
                 return;
             }
 
+            // 場外判定はフィールド全体を覆うトリガーの「退出」で検知する。ボールは発射位置（トリガー内側）で
+            // 毎回アクティブ化されるため、進入(Enter)で判定すると再アクティブ化した瞬間に即座に場外扱いになってしまう。
             var outOfField = other.GetComponent<OutOfFieldMarker>();
             if (outOfField != null)
             {
