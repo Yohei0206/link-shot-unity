@@ -32,6 +32,11 @@ namespace LinkShot.Game
         private const string PhysicsSpritePath = "Field/Kenney/Physics/";
         private const string LaunchRingSpritePath = "UI/Kenney/PNG/Blue/Default/icon_outline_circle";
         private const string WallSlotSpritePath = "UI/Kenney/PNG/Blue/Default/button_square_line";
+        private const string TinyFarmSpritePath = "Field/Kenney/TinyFarm/";
+
+        // 農園演出は的・壁・発射円より必ず後ろに描画する（当たり判定には関与しない見た目のみの装飾）。
+        private const int BackgroundSortingOrder = -20;
+        private const int DecorationSortingOrder = -15;
 
         private static readonly Color InactiveLaunchColor = new Color(1f, 1f, 1f, 0.35f);
         private static readonly Color ActiveLaunchColor = new Color(1f, 0.65f, 0.05f, 0.95f);
@@ -42,10 +47,61 @@ namespace LinkShot.Game
 
         public void BuildStaticField()
         {
+            BuildFarmBackground();
             BuildTargets();
             BuildWallAreaBackground();
             BuildLaunchPositions();
             BuildOutOfFieldBoundary();
+        }
+
+        // Kenney Tiny Farmの芝生タイル(tile_0105)の地色をそのまま単色地面として使う。
+        // タイル自体を1ワールド単位まで拡大して並べると、タイル内の縁取りの1〜2pxが目立つ太い線として
+        // 拡大されてしまう(16pxタイルはタイルマップの密な並びで見る前提のため)ので、地色の単色塗りのみにする。
+        private static readonly Color FarmGrassGroundColor = new Color(78f / 255f, 151f / 255f, 76f / 255f);
+
+        /// <summary>
+        /// Kenney "Tiny Farm"（CC0）を使った背景演出。地色を敷き詰めたうえで、
+        /// 帯の外側（壁・的・発射円の当たり判定には使われないx範囲）に木・茂み・岩を並べる。
+        /// 見た目のみで当たり判定は持たせない。
+        /// </summary>
+        private void BuildFarmBackground()
+        {
+            var backgroundGo = new GameObject("FarmGrassBackground");
+            backgroundGo.transform.SetParent(transform);
+            backgroundGo.transform.position = Vector2.zero;
+
+            AddVisual(backgroundGo, WideBandWidth * 2.2f, FieldHeight * 1.4f, FarmGrassGroundColor).sortingOrder = BackgroundSortingOrder;
+
+            BuildFarmDecorations();
+        }
+
+        // 同じX座標に木を縦一列に並べると、幹やシルエットの輪郭が繋がって1本の柱のように見えてしまうため、
+        // 各アイテムのXを少しずつジグザグにずらして自然な散らばりにする。
+        private void BuildFarmDecorations()
+        {
+            float marginX = WideBandWidth / 2f + 0.3f;
+
+            CreateDecoration("tile_0027", new Vector2(-marginX - 0.2f, 3.4f), 1.6f);
+            CreateDecoration("tile_0015", new Vector2(-marginX + 0.5f, 1.9f), 1.2f);
+            CreateDecoration("tile_0078", new Vector2(-marginX - 0.1f, 0.3f), 0.7f);
+            CreateDecoration("tile_0089", new Vector2(-marginX + 0.4f, -1.2f), 0.6f);
+            CreateDecoration("tile_0015", new Vector2(-marginX - 0.2f, -2.9f), 0.8f);
+
+            CreateDecoration("tile_0027", new Vector2(marginX + 0.2f, 3.4f), 1.6f);
+            CreateDecoration("tile_0015", new Vector2(marginX - 0.5f, 1.9f), 1.2f);
+            CreateDecoration("tile_0083", new Vector2(marginX + 0.1f, 0.3f), 0.7f);
+            CreateDecoration("tile_0089", new Vector2(marginX - 0.4f, -1.2f), 0.6f);
+            CreateDecoration("tile_0015", new Vector2(marginX + 0.2f, -2.9f), 0.8f);
+        }
+
+        private void CreateDecoration(string tileName, Vector2 position, float size)
+        {
+            var go = new GameObject($"FarmDecoration_{tileName}");
+            go.transform.SetParent(transform);
+            go.transform.position = position;
+
+            Sprite sprite = Resources.Load<Sprite>(TinyFarmSpritePath + tileName);
+            AddVisual(go, size, size, Color.white, sprite).sortingOrder = DecorationSortingOrder;
         }
 
         private static float FractionToWorldY(float fraction)
