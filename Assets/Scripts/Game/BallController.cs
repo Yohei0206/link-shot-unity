@@ -85,6 +85,18 @@ namespace LinkShot.Game
             Resolve(ShotOutcomeKind.Timeout, null);
         }
 
+        /// <summary>
+        /// 次のショット（DOUBLE_SHOTの2射目を含む）を始める前にMatchDirectorから呼ぶ。
+        /// _resolvedは一度trueになったきりリセットされないと、1試合の最初のショット以降は
+        /// 何にぶつかってもOnTriggerEnter2D/OnCollisionEnter2Dが早期returnし続け、
+        /// 常にタイムアウト扱いになってしまうため、ショット開始のたびに解除する。
+        /// </summary>
+        public void Rearm()
+        {
+            _resolved = false;
+            _usedGhostPass = false;
+        }
+
         private void Resolve(ShotOutcomeKind outcome, TargetZoneId? zone)
         {
             _resolved = true;

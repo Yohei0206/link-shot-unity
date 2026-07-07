@@ -259,6 +259,7 @@ namespace LinkShot.Game
         private IEnumerator RunSingleAttempt(Vector2 origin)
         {
             _ballObject.SetActive(true);
+            _ballController.Rearm();
             _slingshotInput.BeginAt(origin);
 
             bool resolved = false;
