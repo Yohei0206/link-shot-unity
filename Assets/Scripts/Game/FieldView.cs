@@ -34,6 +34,7 @@ namespace LinkShot.Game
 
         private const string PhysicsSpritePath = "Field/Kenney/Physics/";
         private const string LaunchRingSpritePath = "UI/Kenney/PNG/Blue/Default/icon_outline_circle";
+        private const string WallSlotSpritePath = "UI/Kenney/PNG/Blue/Default/button_square_line";
         private const string TinyFarmSpritePath = "Field/Kenney/TinyFarm/";
 
         // 農園演出は的・壁・発射円より必ず後ろに描画する（当たり判定には関与しない見た目のみの装飾）。
@@ -186,16 +187,33 @@ namespace LinkShot.Game
 
         /// <summary>
         /// 壁配置エリア（GAME_RULES.md 7章の帯）の地面を土にして、芝エリアと一目で区別できるようにする。
-        /// 個別マスの枠線は表示せず、地面の見た目だけでエリアを示す（実際に置ける範囲・当たり判定は
-        /// WallPlacementPanelのタップ判定とApplyWallsが担う）。
+        /// そのうえで、実際に壁が置かれる範囲（1枚分の幅・高さ）だけを枠線で示す。セル全体を塗るのではなく
+        /// 壁の実寸に合わせることで、選択中の当たり判定エリア全体を覆う網掛け（廃止済み）とは違う、
+        /// 「ここに壁が置かれる」という最小限の目印にする。
         /// </summary>
         private void BuildWallAreaBackground()
         {
-            var go = new GameObject("WallAreaGround");
-            go.transform.SetParent(transform);
-            go.transform.position = new Vector2(0f, (FractionToWorldY(TargetBandBottomFraction) + FractionToWorldY(WallBandBottomFraction)) / 2f);
+            var groundGo = new GameObject("WallAreaGround");
+            groundGo.transform.SetParent(transform);
+            groundGo.transform.position = new Vector2(0f, (FractionToWorldY(TargetBandBottomFraction) + FractionToWorldY(WallBandBottomFraction)) / 2f);
 
-            AddVisual(go, WallBandWidth, WallBandHeight(), FarmDirtGroundColor).sortingOrder = BackgroundSortingOrder + 1;
+            AddVisual(groundGo, WallBandWidth, WallBandHeight(), FarmDirtGroundColor).sortingOrder = BackgroundSortingOrder + 1;
+
+            Vector2 cellSize = GetWallCellSize();
+            float slotWidth = cellSize.x * WallVisualWidthRatio;
+            float slotHeight = cellSize.y * WallVisualHeightRatio;
+            Sprite slotSprite = Resources.Load<Sprite>(WallSlotSpritePath);
+
+            for (int i = 0; i < GameConfig.WallGridCellCount; i++)
+            {
+                Vector2 center = GetWallCellCenter(i);
+
+                var go = new GameObject($"WallSlot_{i}");
+                go.transform.SetParent(transform);
+                go.transform.position = center;
+
+                AddVisual(go, slotWidth, slotHeight, new Color(1f, 1f, 1f, 0.4f), slotSprite).sortingOrder = BackgroundSortingOrder + 2;
+            }
         }
 
         private void BuildLaunchPositions()
