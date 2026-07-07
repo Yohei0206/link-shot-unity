@@ -367,6 +367,55 @@ namespace LinkShot.Game
             return _launchMarkers[position].transform.position;
         }
 
+        /// <summary>
+        /// BOUNCE_BOARD設置UIが使う、設置可能なワールド範囲（壁配置エリア＋フリーエリア。GAME_RULES.md 5.2章）。
+        /// </summary>
+        public (Vector2 min, Vector2 max) GetBouncePlacementWorldBounds()
+        {
+            float halfWidth = WallBandWidth / 2f;
+            float yTop = FractionToWorldY(TargetBandBottomFraction);
+            float yBottom = FractionToWorldY(FreeBandBottomFraction);
+            return (new Vector2(-halfWidth, yBottom), new Vector2(halfWidth, yTop));
+        }
+
+        /// <summary>NormalizedToWorldの逆変換。BOUNCE_BOARD設置UIでクリック位置をEffectChoiceへ変換するために使う。</summary>
+        public static Vec2 WorldToNormalized(Vector2 world)
+        {
+            float x = (world.x + FieldWidth / 2f) / FieldWidth;
+            float y = (FieldHeight / 2f - world.y) / FieldHeight;
+            return new Vec2(x, y);
+        }
+
+        /// <summary>
+        /// WIDE_GATE発動時、指定した得点階層の的（既に配置済みのもの）の当たり判定・見た目を拡大する
+        /// （倍率はGameConfig.WideGateHitboxMultiplier）。
+        /// </summary>
+        public void ApplyWideGate(TargetZoneId? zone)
+        {
+            if (zone == null)
+            {
+                return;
+            }
+
+            foreach (GameObject go in _targetObjects)
+            {
+                var marker = go.GetComponent<TargetZoneMarker>();
+                if (marker == null || marker.ZoneId != zone.Value)
+                {
+                    continue;
+                }
+
+                float newRadius = marker.BaseRadius * GameConfig.WideGateHitboxMultiplier;
+                go.GetComponent<CircleCollider2D>().radius = newRadius;
+
+                Transform visual = go.transform.Find("Visual");
+                if (visual != null)
+                {
+                    visual.localScale *= GameConfig.WideGateHitboxMultiplier;
+                }
+            }
+        }
+
         public float GetLaunchRadiusWorld(bool boosted)
         {
             float radius = FieldWidth * GameConfig.LaunchCircleRadiusRatio;

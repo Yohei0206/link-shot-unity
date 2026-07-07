@@ -2,6 +2,7 @@ using System;
 using System.Collections;
 using System.Collections.Generic;
 using LinkShot.Core;
+using LinkShot.Core.Effects;
 using LinkShot.UI;
 using UnityEngine;
 
@@ -10,18 +11,20 @@ namespace LinkShot.Game
     /// <summary>
     /// Match.unityに1つ置くHumble Object（ARCHITECTURE.md 2.3章）。Core.PhaseMachineを保持して駆動し、
     /// FieldView/BallController/SlingshotInput/UI/層のパネルに反映する。
-    /// カード選択・壁配置は実際のUI操作（人間の入力）で決定する。発射ポジション決定とカード効果解決は、
-    /// 対象選択が不要な暫定デッキで運用しているため自動で進める（DeckSelect画面実装後に見直す）。
+    /// カード選択・壁配置・対象選択が必要なカード効果（WALL_REMOVE/BOUNCE_BOARD/WALL_SHIFT/WIDE_GATE）・
+    /// 発射ポジション決定（POSITION_CHOICE/REROLL）はすべて実際のUI操作（人間の入力）で決定する。
+    /// 対象選択が不要な効果は即座に解決する。
     /// </summary>
     public class MatchDirector : MonoBehaviour
     {
         private const float BallBaseDiameter = 0.55f;
         private const float BaseLaunchSpeed = 8f;
 
-        // UI/DeckSelect未実装のための暫定デッキ（対象選択が不要な5種で統一）。
+        // UI/DeckSelect未実装のための暫定デッキ。対象選択が必要な効果（WALL_REMOVE/BOUNCE_BOARD/
+        // WALL_SHIFT/WIDE_GATE/POSITION_CHOICE）を一通り実プレイで確認できる組み合わせにしてある。
         private static readonly List<string> PlaceholderDeck = new List<string>
         {
-            "RANGE_BOOST_GAMMA", "POWER_SHOT_GAMMA", "MINI_BALL_GAMMA", "GHOST_BALL_BETA", "CURVE_SHOT_BETA",
+            "WALL_REMOVE_ALPHA", "BOUNCE_BOARD_BETA", "WALL_SHIFT_ALPHA", "WIDE_GATE_GAMMA", "POSITION_CHOICE",
         };
 
         private GameState _state;
@@ -34,6 +37,8 @@ namespace LinkShot.Game
         private HandoverScreen _handoverScreen;
         private CardSelectPanel _cardSelectPanel;
         private WallPlacementPanel _wallPlacementPanel;
+        private PositionRollPanel _positionRollPanel;
+        private EffectChoicePanel _effectChoicePanel;
         private HudPanel _hudPanel;
 
         private void Start()
@@ -131,6 +136,9 @@ namespace LinkShot.Game
             _cardSelectPanel = CreateFullScreenPanel<CardSelectPanel>(canvas.transform, "CardSelectPanel");
             _wallPlacementPanel = CreateFullScreenPanel<WallPlacementPanel>(canvas.transform, "WallPlacementPanel");
             _wallPlacementPanel.Configure(_fieldView, Camera.main);
+            _positionRollPanel = CreateFullScreenPanel<PositionRollPanel>(canvas.transform, "PositionRollPanel");
+            _effectChoicePanel = CreateFullScreenPanel<EffectChoicePanel>(canvas.transform, "EffectChoicePanel");
+            _effectChoicePanel.Configure(_fieldView, Camera.main);
             _hudPanel = CreateFullScreenPanel<HudPanel>(canvas.transform, "HudPanel");
         }
 
@@ -157,10 +165,10 @@ namespace LinkShot.Game
                         yield return RunWallPlacementPhase();
                         break;
                     case Phase.PositionRoll:
-                        AutoRollPosition();
+                        yield return RunPositionRollPhase();
                         break;
                     case Phase.EffectResolve:
-                        AutoResolveEffect();
+                        yield return RunEffectResolvePhase();
                         break;
                     case Phase.Shot:
                         yield return RunShotPhase();
@@ -221,22 +229,105 @@ namespace LinkShot.Game
             yield return new WaitUntil(() => confirmed);
         }
 
-        private void AutoRollPosition()
+        /// <summary>
+        /// (3)(8) 発射ポジション決定。POSITION_CHOICE発動中はサイコロを振らず自由選択UIを出す。
+        /// REROLL発動中は出目を見せてから振り直すか確定するかのUIを出す。どちらでもなければ即座に確定する。
+        /// </summary>
+        private IEnumerator RunPositionRollPhase()
         {
-            PhaseMachine.Dispatch(_state, new RollPositionAction());
+            ICardEffect effect = _state.CurrentShotEffectActivated ? EffectRegistry.Get(_state.AttackerCard.Effect) : null;
+
+            if (effect != null && effect.ReplacesPositionRoll)
+            {
+                bool chosen = false;
+                _positionRollPanel.ShowPositionChoice(position =>
+                {
+                    PhaseMachine.Dispatch(_state, new ChoosePositionAction(position));
+                    chosen = true;
+                });
+                yield return new WaitUntil(() => chosen);
+            }
+            else
+            {
+                PhaseMachine.Dispatch(_state, new RollPositionAction());
+
+                if (_state.RerollAvailable)
+                {
+                    int rolled = _state.PendingDiceRoll.Value;
+                    bool decided = false;
+                    _positionRollPanel.ShowReroll(rolled, wantsReroll =>
+                    {
+                        GameAction action = wantsReroll ? new RerollAction() : (GameAction)new ConfirmPositionAction();
+                        PhaseMachine.Dispatch(_state, action);
+                        decided = true;
+                    });
+                    yield return new WaitUntil(() => decided);
+                }
+            }
+
             _fieldView.HighlightLaunchPosition(_state.Field.LaunchPosition);
             Debug.Log($"[Round {_state.Round} Shot {_state.ShotIndex}] 発射ポジション: {_state.Field.LaunchPosition}");
         }
 
-        private void AutoResolveEffect()
+        /// <summary>
+        /// (4)(9) カード効果解決。対象選択が必要な効果（WALL_REMOVE/WALL_SHIFT/BOUNCE_BOARD/WIDE_GATE）は
+        /// 攻撃側にUIで選ばせてからResolveEffectActionをdispatchする。それ以外はChoice無しで即座に解決する。
+        /// </summary>
+        private IEnumerator RunEffectResolvePhase()
         {
-            PhaseMachine.Dispatch(_state, new ResolveEffectAction(default));
-            _fieldView.ApplyBounceBoards(_state.Field.BounceBoards);
+            EffectChoice choice = default;
 
             if (_state.CurrentShotEffectActivated)
             {
-                Debug.Log($"[Round {_state.Round} Shot {_state.ShotIndex}] 攻撃効果発動: {_state.AttackerCard.Effect}");
+                EffectId effectId = _state.AttackerCard.Effect;
+                Debug.Log($"[Round {_state.Round} Shot {_state.ShotIndex}] 攻撃効果発動: {effectId}");
+
+                bool resolved = false;
+
+                switch (effectId)
+                {
+                    case EffectId.WallRemove when _state.Field.DefenderWalls.Count > 0:
+                        _effectChoicePanel.ShowWallRemove(_state.Field.DefenderWalls, cell =>
+                        {
+                            choice = new EffectChoice { WallTargetCellIndex = cell };
+                            resolved = true;
+                        });
+                        yield return new WaitUntil(() => resolved);
+                        break;
+
+                    case EffectId.WallShift when _state.Field.DefenderWalls.Count > 0:
+                        _effectChoicePanel.ShowWallShift(_state.Field.DefenderWalls, (fromCell, toCell) =>
+                        {
+                            choice = new EffectChoice { WallTargetCellIndex = fromCell, WallDestinationCellIndex = toCell };
+                            resolved = true;
+                        });
+                        yield return new WaitUntil(() => resolved);
+                        break;
+
+                    case EffectId.BounceBoard:
+                        _effectChoicePanel.ShowBounceBoard(position =>
+                        {
+                            choice = new EffectChoice { BouncePosition = position };
+                            resolved = true;
+                        });
+                        yield return new WaitUntil(() => resolved);
+                        break;
+
+                    case EffectId.WideGate:
+                        _effectChoicePanel.ShowWideGate(zone =>
+                        {
+                            choice = new EffectChoice { WideGateZone = zone };
+                            resolved = true;
+                        });
+                        yield return new WaitUntil(() => resolved);
+                        break;
+                }
             }
+
+            PhaseMachine.Dispatch(_state, new ResolveEffectAction(choice));
+            _fieldView.ApplyWalls(_state.Field.DefenderWalls);
+            _fieldView.ApplyBounceBoards(_state.Field.BounceBoards);
+            _fieldView.ApplyWideGate(_state.Field.WideGateZone);
         }
 
         private IEnumerator RunShotPhase()
