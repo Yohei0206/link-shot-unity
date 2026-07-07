@@ -4,7 +4,7 @@ namespace LinkShot.Core
     public static class Scoring
     {
         /// <summary>
-        /// 着弾結果からメダル効果適用前の基礎点を求める。
+        /// 着弾結果からカード効果適用前の基礎点を求める。
         /// 壁命中・枠外・時間切れは常に0点（GAME_RULES.md 5.2, 5.3章）。
         /// </summary>
         public static int BaseScore(ShotOutcomeKind outcome, TargetZoneId? zone)

@@ -6,10 +6,10 @@ using NUnit.Framework;
 namespace LinkShot.Core.Tests
 {
     /// <summary>
-    /// MEDALS.md記載の15効果をカバーするテスト。
+    /// CARDS.md記載の15効果をカバーするテスト。
     /// DOUBLE_SHOT / POSITION_CHOICE / REROLL は発射ポジション決定・ショット回数に関わるためPhaseMachineFlowTests側で検証済み。
     /// </summary>
-    public class MedalEffectsTests
+    public class CardEffectsTests
     {
         [Test]
         public void WallRemove_RemovesTargetedWall_WhenActivated()

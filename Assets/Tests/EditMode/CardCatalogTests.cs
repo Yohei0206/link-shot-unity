@@ -5,24 +5,24 @@ using NUnit.Framework;
 
 namespace LinkShot.Core.Tests
 {
-    public class MedalCatalogTests
+    public class CardCatalogTests
     {
         [Test]
-        public void All_HasFifteenMedals()
+        public void All_HasFifteenCards()
         {
-            Assert.AreEqual(15, MedalCatalog.All.Count);
+            Assert.AreEqual(15, CardCatalog.All.Count);
         }
 
         [Test]
-        public void All_MedalIdsAreUnique()
+        public void All_CardIdsAreUnique()
         {
-            Assert.AreEqual(MedalCatalog.All.Count, MedalCatalog.All.Select(m => m.Id).Distinct().Count());
+            Assert.AreEqual(CardCatalog.All.Count, CardCatalog.All.Select(m => m.Id).Distinct().Count());
         }
 
         [Test]
         public void Legendary_HasThreeWithDistinctFixedElements()
         {
-            var legendary = MedalCatalog.All.Where(m => m.Rarity == Rarity.Legendary).ToList();
+            var legendary = CardCatalog.All.Where(m => m.Rarity == Rarity.Legendary).ToList();
             Assert.AreEqual(3, legendary.Count);
             Assert.AreEqual(3, legendary.Select(m => m.Element).Distinct().Count());
         }
@@ -30,7 +30,7 @@ namespace LinkShot.Core.Tests
         [Test]
         public void Rare_HasFourMatchingSpec()
         {
-            var rareEffects = MedalCatalog.All.Where(m => m.Rarity == Rarity.Rare).Select(m => m.Effect).ToHashSet();
+            var rareEffects = CardCatalog.All.Where(m => m.Rarity == Rarity.Rare).Select(m => m.Effect).ToHashSet();
             var expected = new HashSet<EffectId>
             {
                 EffectId.WallRemove, EffectId.ScoreDouble, EffectId.GhostBall, EffectId.Reroll,
@@ -41,7 +41,7 @@ namespace LinkShot.Core.Tests
         [Test]
         public void Common_HasEightMatchingSpec()
         {
-            var commonEffects = MedalCatalog.All.Where(m => m.Rarity == Rarity.Common).Select(m => m.Effect).ToHashSet();
+            var commonEffects = CardCatalog.All.Where(m => m.Rarity == Rarity.Common).Select(m => m.Effect).ToHashSet();
             var expected = new HashSet<EffectId>
             {
                 EffectId.BounceBoard, EffectId.RangeBoost, EffectId.WallShift, EffectId.WideGate,
@@ -57,17 +57,17 @@ namespace LinkShot.Core.Tests
             {
                 "DOUBLE_SHOT", "WALL_REMOVE_ALPHA", "SCORE_DOUBLE_ALPHA", "BOUNCE_BOARD_BETA", "RANGE_BOOST_GAMMA",
             };
-            Assert.IsTrue(MedalCatalog.IsValidDeck(deck, out string error), error);
+            Assert.IsTrue(CardCatalog.IsValidDeck(deck, out string error), error);
         }
 
         [Test]
-        public void IsValidDeck_False_ForDuplicateMedal()
+        public void IsValidDeck_False_ForDuplicateCard()
         {
             var deck = new List<string>
             {
                 "WALL_REMOVE_ALPHA", "WALL_REMOVE_ALPHA", "SCORE_DOUBLE_ALPHA", "BOUNCE_BOARD_BETA", "RANGE_BOOST_GAMMA",
             };
-            Assert.IsFalse(MedalCatalog.IsValidDeck(deck, out _));
+            Assert.IsFalse(CardCatalog.IsValidDeck(deck, out _));
         }
 
         [Test]
@@ -77,7 +77,7 @@ namespace LinkShot.Core.Tests
             {
                 "DOUBLE_SHOT", "POSITION_CHOICE", "SCORE_DOUBLE_ALPHA", "BOUNCE_BOARD_BETA", "RANGE_BOOST_GAMMA",
             };
-            Assert.IsFalse(MedalCatalog.IsValidDeck(deck, out _));
+            Assert.IsFalse(CardCatalog.IsValidDeck(deck, out _));
         }
 
         [Test]
@@ -87,14 +87,14 @@ namespace LinkShot.Core.Tests
             {
                 "WALL_REMOVE_ALPHA", "SCORE_DOUBLE_ALPHA", "REROLL_ALPHA", "BOUNCE_BOARD_BETA", "RANGE_BOOST_GAMMA",
             };
-            Assert.IsFalse(MedalCatalog.IsValidDeck(deck, out _));
+            Assert.IsFalse(CardCatalog.IsValidDeck(deck, out _));
         }
 
         [Test]
         public void IsValidDeck_False_WhenNotFiveCards()
         {
             var deck = new List<string> { "WALL_REMOVE_ALPHA", "SCORE_DOUBLE_ALPHA" };
-            Assert.IsFalse(MedalCatalog.IsValidDeck(deck, out _));
+            Assert.IsFalse(CardCatalog.IsValidDeck(deck, out _));
         }
     }
 }

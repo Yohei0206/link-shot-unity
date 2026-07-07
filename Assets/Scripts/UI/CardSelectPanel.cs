@@ -7,11 +7,11 @@ using UnityEngine.UI;
 namespace LinkShot.UI
 {
     /// <summary>
-    /// (1) 準備フェーズ: 手札のメダルをボタン一覧で表示し、1枚選ばせる（GAME_RULES.md 3章）。
+    /// (1) 準備フェーズ: 手札のカードをボタン一覧で表示し、1枚選ばせる（GAME_RULES.md 3章）。
     /// 選択後はHandoverScreenで秘匿してから相手に手番を渡す想定（MatchDirectorが制御）。
     /// 属性（Element）は色分け＋カタカナ表記で見分けやすくする。
     /// </summary>
-    public class MedalSelectPanel : MonoBehaviour
+    public class CardSelectPanel : MonoBehaviour
     {
         private Text _titleText;
         private Transform _buttonContainer;
@@ -33,9 +33,9 @@ namespace LinkShot.UI
             gameObject.SetActive(false);
         }
 
-        public void Show(int player, IReadOnlyList<string> handMedalIds, Action<string> onSelected)
+        public void Show(int player, IReadOnlyList<string> handCardIds, Action<string> onSelected)
         {
-            _titleText.text = $"プレイヤー{player + 1}: メダルを1枚選んでください";
+            _titleText.text = $"プレイヤー{player + 1}: カードを1枚選んでください";
 
             foreach (GameObject old in _buttons)
             {
@@ -44,20 +44,20 @@ namespace LinkShot.UI
 
             _buttons.Clear();
 
-            int count = handMedalIds.Count;
+            int count = handCardIds.Count;
             const float spacing = 220f;
             float startX = -(count - 1) * spacing / 2f;
 
             for (int i = 0; i < count; i++)
             {
-                string medalId = handMedalIds[i];
-                Medal medal = MedalCatalog.Get(medalId);
+                string cardId = handCardIds[i];
+                Card card = CardCatalog.Get(cardId);
 
-                Button button = UITheme.CreateButton(_buttonContainer, $"Medal_{medalId}", BuildLabel(medal), () => onSelected?.Invoke(medalId));
+                Button button = UITheme.CreateButton(_buttonContainer, $"Card_{cardId}", BuildLabel(card), () => onSelected?.Invoke(cardId));
                 UITheme.SetRect(button.GetComponent<RectTransform>(), new Vector2(startX + i * spacing, 0), new Vector2(180, 260));
-                button.GetComponent<Image>().color = ElementColor(medal.Element);
+                button.GetComponent<Image>().color = ElementColor(card.Element);
 
-                Text starsText = UITheme.CreateText(button.transform, "Stars", RarityStars(medal.Rarity), 26, new Color(0.85f, 0.65f, 0.05f), TextAnchor.MiddleCenter);
+                Text starsText = UITheme.CreateText(button.transform, "Stars", RarityStars(card.Rarity), 26, new Color(0.85f, 0.65f, 0.05f), TextAnchor.MiddleCenter);
                 UITheme.SetRect(starsText.rectTransform, new Vector2(0, 100), new Vector2(170, 40));
 
                 _buttons.Add(button.gameObject);
@@ -71,9 +71,9 @@ namespace LinkShot.UI
             gameObject.SetActive(false);
         }
 
-        private static string BuildLabel(Medal medal)
+        private static string BuildLabel(Card card)
         {
-            return $"{ElementKatakana(medal.Element)}\n{EffectJapanese(medal.Effect)}";
+            return $"{ElementKatakana(card.Element)}\n{EffectJapanese(card.Effect)}";
         }
 
         /// <summary>属性ごとの色分け（三すくみを見分けやすくする。CLAUDE.md用語集: ALPHA/BETA/GAMMA）。</summary>
@@ -111,7 +111,7 @@ namespace LinkShot.UI
             return new string('★', count);
         }
 
-        /// <summary>効果名の日本語表記（MEDALS.md 3-4章の効果名に準拠）。</summary>
+        /// <summary>効果名の日本語表記（CARDS.md 3-4章の効果名に準拠）。</summary>
         private static string EffectJapanese(EffectId effect)
         {
             return effect switch

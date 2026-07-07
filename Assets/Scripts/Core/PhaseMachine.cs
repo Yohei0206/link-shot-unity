@@ -15,8 +15,8 @@ namespace LinkShot.Core
         {
             switch (action)
             {
-                case SetMedalAction a:
-                    HandleSetMedal(state, a);
+                case SetCardAction a:
+                    HandleSetCard(state, a);
                     break;
                 case PlaceWallsAction a:
                     HandlePlaceWalls(state, a);
@@ -55,26 +55,26 @@ namespace LinkShot.Core
             }
         }
 
-        private static void HandleSetMedal(GameState state, SetMedalAction action)
+        private static void HandleSetCard(GameState state, SetCardAction action)
         {
-            RequirePhase(state, Phase.MedalSet);
+            RequirePhase(state, Phase.CardSet);
 
             PlayerState player = state.Players[action.Player];
-            if (player.SetMedalId != null)
+            if (player.SetCardId != null)
             {
-                throw new InvalidOperationException("このラウンドは既にメダルをセット済みです");
+                throw new InvalidOperationException("このラウンドは既にカードをセット済みです");
             }
 
-            if (!player.Hand.Contains(action.MedalId))
+            if (!player.Hand.Contains(action.CardId))
             {
-                throw new InvalidOperationException($"手札にないメダルです: {action.MedalId}");
+                throw new InvalidOperationException($"手札にないカードです: {action.CardId}");
             }
 
-            player.Hand.Remove(action.MedalId);
-            player.UsedMedalIds.Add(action.MedalId);
-            player.SetMedalId = action.MedalId;
+            player.Hand.Remove(action.CardId);
+            player.UsedCardIds.Add(action.CardId);
+            player.SetCardId = action.CardId;
 
-            if (state.BothMedalsSet)
+            if (state.BothCardsSet)
             {
                 state.Phase = Phase.WallPlacement;
             }
@@ -197,7 +197,7 @@ namespace LinkShot.Core
 
             if (state.CurrentShotEffectActivated)
             {
-                IMedalEffect effect = EffectRegistry.Get(state.AttackerMedal.Effect);
+                ICardEffect effect = EffectRegistry.Get(state.AttackerCard.Effect);
                 effect.OnResolve(state, action.Choice);
                 state.CurrentShotModifier = effect.ModifyShot(ShotModifier.Default);
             }
@@ -250,7 +250,7 @@ namespace LinkShot.Core
             int finalScore = baseFinal;
             if (activated)
             {
-                finalScore = EffectRegistry.Get(state.AttackerMedal.Effect).ModifyScore(state, outcomeFinal, baseFinal);
+                finalScore = EffectRegistry.Get(state.AttackerCard.Effect).ModifyScore(state, outcomeFinal, baseFinal);
             }
 
             state.Players[attacker].Score += finalScore;
@@ -261,8 +261,8 @@ namespace LinkShot.Core
                 ShotIndex = state.ShotIndex,
                 Attacker = attacker,
                 Defender = defender,
-                AttackerMedalId = state.Players[attacker].SetMedalId,
-                DefenderMedalId = state.Players[defender].SetMedalId,
+                AttackerCardId = state.Players[attacker].SetCardId,
+                DefenderCardId = state.Players[defender].SetCardId,
                 EffectActivated = activated,
                 Outcome = outcomeFinal,
                 Score = finalScore,
@@ -270,7 +270,7 @@ namespace LinkShot.Core
 
             if (activated)
             {
-                EffectRegistry.Get(state.AttackerMedal.Effect).OnAfterScore(state, attacker, defender);
+                EffectRegistry.Get(state.AttackerCard.Effect).OnAfterScore(state, attacker, defender);
             }
 
             state.Phase = Phase.ScoreResolve;
@@ -293,11 +293,11 @@ namespace LinkShot.Core
                 state.Round += 1;
                 state.ShotIndex = 0;
                 ResetPerShotState(state);
-                state.Players[0].SetMedalId = null;
-                state.Players[1].SetMedalId = null;
+                state.Players[0].SetCardId = null;
+                state.Players[1].SetCardId = null;
                 state.Players[0].DisposableWallCardsUsedThisRound = 0;
                 state.Players[1].DisposableWallCardsUsedThisRound = 0;
-                state.Phase = Phase.MedalSet;
+                state.Phase = Phase.CardSet;
             }
             else
             {
@@ -317,9 +317,9 @@ namespace LinkShot.Core
             state.ShotAttemptOutcomes.Clear();
         }
 
-        private static bool AttackerEffectFlag(GameState state, Func<IMedalEffect, bool> flag)
+        private static bool AttackerEffectFlag(GameState state, Func<ICardEffect, bool> flag)
         {
-            return state.CurrentShotEffectActivated && flag(EffectRegistry.Get(state.AttackerMedal.Effect));
+            return state.CurrentShotEffectActivated && flag(EffectRegistry.Get(state.AttackerCard.Effect));
         }
     }
 }

@@ -10,7 +10,7 @@ namespace LinkShot.Game
     /// <summary>
     /// Match.unityに1つ置くHumble Object（ARCHITECTURE.md 2.3章）。Core.PhaseMachineを保持して駆動し、
     /// FieldView/BallController/SlingshotInput/UI/層のパネルに反映する。
-    /// メダル選択・壁配置は実際のUI操作（人間の入力）で決定する。発射ポジション決定とメダル効果解決は、
+    /// カード選択・壁配置は実際のUI操作（人間の入力）で決定する。発射ポジション決定とカード効果解決は、
     /// 対象選択が不要な暫定デッキで運用しているため自動で進める（DeckSelect画面実装後に見直す）。
     /// </summary>
     public class MatchDirector : MonoBehaviour
@@ -32,7 +32,7 @@ namespace LinkShot.Game
         private SlingshotInput _slingshotInput;
 
         private HandoverScreen _handoverScreen;
-        private MedalSelectPanel _medalSelectPanel;
+        private CardSelectPanel _cardSelectPanel;
         private WallPlacementPanel _wallPlacementPanel;
         private HudPanel _hudPanel;
 
@@ -48,7 +48,7 @@ namespace LinkShot.Game
             CreateBall();
             CreateUI();
 
-            if (!MedalCatalog.IsValidDeck(PlaceholderDeck, out string error))
+            if (!CardCatalog.IsValidDeck(PlaceholderDeck, out string error))
             {
                 Debug.LogError($"[MatchDirector] 暫定デッキが不正です: {error}");
                 return;
@@ -128,7 +128,7 @@ namespace LinkShot.Game
             Canvas canvas = UITheme.CreateCanvas("UICanvas", transform, 10);
 
             _handoverScreen = CreateFullScreenPanel<HandoverScreen>(canvas.transform, "HandoverScreen");
-            _medalSelectPanel = CreateFullScreenPanel<MedalSelectPanel>(canvas.transform, "MedalSelectPanel");
+            _cardSelectPanel = CreateFullScreenPanel<CardSelectPanel>(canvas.transform, "CardSelectPanel");
             _wallPlacementPanel = CreateFullScreenPanel<WallPlacementPanel>(canvas.transform, "WallPlacementPanel");
             _wallPlacementPanel.Configure(_fieldView, Camera.main);
             _hudPanel = CreateFullScreenPanel<HudPanel>(canvas.transform, "HudPanel");
@@ -150,8 +150,8 @@ namespace LinkShot.Game
 
                 switch (_state.Phase)
                 {
-                    case Phase.MedalSet:
-                        yield return RunMedalSetPhase();
+                    case Phase.CardSet:
+                        yield return RunCardSetPhase();
                         break;
                     case Phase.WallPlacement:
                         yield return RunWallPlacementPhase();
@@ -177,28 +177,28 @@ namespace LinkShot.Game
             LogMatchEnd();
         }
 
-        private IEnumerator RunMedalSetPhase()
+        private IEnumerator RunCardSetPhase()
         {
             for (int player = 0; player < 2; player++)
             {
                 int currentPlayer = player;
 
                 bool handoverDone = false;
-                _handoverScreen.Show($"プレイヤー{currentPlayer + 1}に交代してください\nタップしてメダルを選んでください", () => handoverDone = true);
+                _handoverScreen.Show($"プレイヤー{currentPlayer + 1}に交代してください\nタップしてカードを選んでください", () => handoverDone = true);
                 yield return new WaitUntil(() => handoverDone);
 
                 bool selected = false;
-                _medalSelectPanel.Show(currentPlayer, _state.Players[currentPlayer].Hand, medalId =>
+                _cardSelectPanel.Show(currentPlayer, _state.Players[currentPlayer].Hand, cardId =>
                 {
-                    PhaseMachine.Dispatch(_state, new SetMedalAction(currentPlayer, medalId));
+                    PhaseMachine.Dispatch(_state, new SetCardAction(currentPlayer, cardId));
                     selected = true;
                 });
                 yield return new WaitUntil(() => selected);
-                _medalSelectPanel.Hide();
+                _cardSelectPanel.Hide();
             }
 
             bool concealed = false;
-            _handoverScreen.Show("メダルが揃いました\nタップして壁配置に進みます", () => concealed = true);
+            _handoverScreen.Show("カードが揃いました\nタップして壁配置に進みます", () => concealed = true);
             yield return new WaitUntil(() => concealed);
         }
 
@@ -233,7 +233,7 @@ namespace LinkShot.Game
 
             if (_state.CurrentShotEffectActivated)
             {
-                Debug.Log($"[Round {_state.Round} Shot {_state.ShotIndex}] 攻撃効果発動: {_state.AttackerMedal.Effect}");
+                Debug.Log($"[Round {_state.Round} Shot {_state.ShotIndex}] 攻撃効果発動: {_state.AttackerCard.Effect}");
             }
         }
 
@@ -335,10 +335,10 @@ namespace LinkShot.Game
         {
             string phaseLabel = _state.Phase switch
             {
-                Phase.MedalSet => "メダル選択",
+                Phase.CardSet => "カード選択",
                 Phase.WallPlacement => "壁配置",
                 Phase.PositionRoll => "発射ポジション決定",
-                Phase.EffectResolve => "メダル効果解決",
+                Phase.EffectResolve => "カード効果解決",
                 Phase.Shot => $"ここから発射！（発射ポジション{_state.Field.LaunchPosition}）",
                 Phase.ScoreResolve => "得点解決",
                 Phase.MatchEnd => "試合終了",

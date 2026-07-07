@@ -20,9 +20,9 @@ namespace LinkShot.Core.Tests
 
             for (int round = 1; round <= GameConfig.RoundCount; round++)
             {
-                Assert.AreEqual(Phase.MedalSet, state.Phase);
-                PhaseMachine.Dispatch(state, new SetMedalAction(0, state.Players[0].Hand[0]));
-                PhaseMachine.Dispatch(state, new SetMedalAction(1, state.Players[1].Hand[0]));
+                Assert.AreEqual(Phase.CardSet, state.Phase);
+                PhaseMachine.Dispatch(state, new SetCardAction(0, state.Players[0].Hand[0]));
+                PhaseMachine.Dispatch(state, new SetCardAction(1, state.Players[1].Hand[0]));
 
                 for (int shot = 0; shot < GameConfig.ShotsPerRound; shot++)
                 {
@@ -53,11 +53,11 @@ namespace LinkShot.Core.Tests
         }
 
         [Test]
-        public void SetMedalAction_Throws_WhenNotInMedalSetPhase()
+        public void SetCardAction_Throws_WhenNotInCardSetPhase()
         {
             var state = TestHelpers.NewState("RANGE_BOOST_GAMMA", "MINI_BALL_GAMMA");
             Assert.Throws<InvalidOperationException>(() =>
-                PhaseMachine.Dispatch(state, new SetMedalAction(0, "RANGE_BOOST_GAMMA")));
+                PhaseMachine.Dispatch(state, new SetCardAction(0, "RANGE_BOOST_GAMMA")));
         }
 
         [Test]

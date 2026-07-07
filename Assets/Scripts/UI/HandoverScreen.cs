@@ -6,7 +6,7 @@ namespace LinkShot.UI
 {
     /// <summary>
     /// デバイス受け渡し画面（ARCHITECTURE.md 5章: ローカル対戦の「伏せてセット」を秘匿する）。
-    /// メダル選択の前後で表示し、次のプレイヤーに端末を渡してからタップさせる。
+    /// カード選択の前後で表示し、次のプレイヤーに端末を渡してからタップさせる。
     /// </summary>
     public class HandoverScreen : MonoBehaviour
     {

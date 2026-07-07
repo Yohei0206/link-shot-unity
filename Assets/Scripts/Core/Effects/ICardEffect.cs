@@ -1,11 +1,11 @@
 namespace LinkShot.Core.Effects
 {
     /// <summary>
-    /// メダル効果のstrategyインターフェース（ARCHITECTURE.md 2.4章 / MEDALS.md 6章）。
+    /// カード効果のstrategyインターフェース（ARCHITECTURE.md 2.4章 / CARDS.md 6章）。
     /// PhaseMachineは、GameState.CurrentShotEffectActivated が true の場合のみ各フックを呼び出す。
     /// 発動しない（打ち消された）場合は一切のフックが呼ばれない。
     /// </summary>
-    public interface IMedalEffect
+    public interface ICardEffect
     {
         EffectId Id { get; }
 
@@ -29,7 +29,7 @@ namespace LinkShot.Core.Effects
     }
 
     /// <summary>各フックのデフォルト（何もしない）実装を提供する基底クラス。効果クラスは必要なフックだけをoverrideする。</summary>
-    public abstract class MedalEffectBase : IMedalEffect
+    public abstract class CardEffectBase : ICardEffect
     {
         public abstract EffectId Id { get; }
         public virtual bool ReplacesPositionRoll => false;

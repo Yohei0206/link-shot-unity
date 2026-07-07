@@ -2,11 +2,11 @@ namespace LinkShot.Core.Effects
 {
     /// <summary>
     /// ★★★レジェンド（GAMMA固定）。このラウンドで防御側が使い捨て壁カードを1枚以上使っていた場合、
-    /// 得点解決フェーズ後にその1枚分を攻撃側の手持ちに加える（MEDALS.md 3章）。
+    /// 得点解決フェーズ後にその1枚分を攻撃側の手持ちに加える（CARDS.md 3章）。
     /// カードは同一種類で識別されないため「防御側が使った」事実のみを見て攻撃側の残数を1加算する。
-    /// 防御側が1枚も使っていなければ不発（MEDALS.md 3章補足）。
+    /// 防御側が1枚も使っていなければ不発（CARDS.md 3章補足）。
     /// </summary>
-    public sealed class WallReturnEffect : MedalEffectBase
+    public sealed class WallReturnEffect : CardEffectBase
     {
         public override EffectId Id => EffectId.WallReturn;
 

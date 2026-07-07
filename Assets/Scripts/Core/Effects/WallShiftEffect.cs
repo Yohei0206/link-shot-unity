@@ -4,10 +4,10 @@ using System.Linq;
 namespace LinkShot.Core.Effects
 {
     /// <summary>
-    /// 壁移動。壁1枚（常設壁含む）を隣接マスに1つずらす（移動先は攻撃側が選ぶ。空きマスのみ）（MEDALS.md 4章#4）。
-    /// 移動先に既に壁がある場合は移動できない（MEDALS.md 4章補足）。
+    /// 壁移動。壁1枚（常設壁含む）を隣接マスに1つずらす（移動先は攻撃側が選ぶ。空きマスのみ）（CARDS.md 4章#4）。
+    /// 移動先に既に壁がある場合は移動できない（CARDS.md 4章補足）。
     /// </summary>
-    public sealed class WallShiftEffect : MedalEffectBase
+    public sealed class WallShiftEffect : CardEffectBase
     {
         public override EffectId Id => EffectId.WallShift;
 

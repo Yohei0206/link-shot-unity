@@ -1,7 +1,7 @@
 namespace LinkShot.Core.Effects
 {
-    /// <summary>バウンド板。攻撃側が有利な位置に反射板を1枚設置する（設置位置は攻撃側が選ぶ）（MEDALS.md 4章#2）。</summary>
-    public sealed class BounceBoardEffect : MedalEffectBase
+    /// <summary>バウンド板。攻撃側が有利な位置に反射板を1枚設置する（設置位置は攻撃側が選ぶ）（CARDS.md 4章#2）。</summary>
+    public sealed class BounceBoardEffect : CardEffectBase
     {
         public override EffectId Id => EffectId.BounceBoard;
 

@@ -1,7 +1,7 @@
 namespace LinkShot.Core.Effects
 {
-    /// <summary>的の拡大。的1つを選び、当たり判定を拡大する（倍率はGameConfig参照）（MEDALS.md 4章#6）。</summary>
-    public sealed class WideGateEffect : MedalEffectBase
+    /// <summary>的の拡大。的1つを選び、当たり判定を拡大する（倍率はGameConfig参照）（CARDS.md 4章#6）。</summary>
+    public sealed class WideGateEffect : CardEffectBase
     {
         public override EffectId Id => EffectId.WideGate;
 

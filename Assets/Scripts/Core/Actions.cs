@@ -5,16 +5,16 @@ namespace LinkShot.Core
     {
     }
 
-    /// <summary>(1) 準備フェーズ: プレイヤーがメダルを1枚伏せてセットする。</summary>
-    public sealed class SetMedalAction : GameAction
+    /// <summary>(1) 準備フェーズ: プレイヤーがカードを1枚伏せてセットする。</summary>
+    public sealed class SetCardAction : GameAction
     {
         public readonly int Player;
-        public readonly string MedalId;
+        public readonly string CardId;
 
-        public SetMedalAction(int player, string medalId)
+        public SetCardAction(int player, string cardId)
         {
             Player = player;
-            MedalId = medalId;
+            CardId = cardId;
         }
     }
 
@@ -57,7 +57,7 @@ namespace LinkShot.Core
     {
     }
 
-    /// <summary>(4)(9) メダル効果解決: 属性判定の上、対象選択が必要な効果はchoiceで指定する。</summary>
+    /// <summary>(4)(9) カード効果解決: 属性判定の上、対象選択が必要な効果はchoiceで指定する。</summary>
     public sealed class ResolveEffectAction : GameAction
     {
         public readonly EffectChoice Choice;

@@ -3,16 +3,16 @@ using System.Collections.Generic;
 namespace LinkShot.Core.Effects
 {
     /// <summary>
-    /// EffectId から IMedalEffect インスタンスへのマッピング（MEDALS.md 6章）。
+    /// EffectId から ICardEffect インスタンスへのマッピング（CARDS.md 6章）。
     /// 新しい効果の追加は、このディレクトリにクラスを1つ足してここに登録するだけで済む。
     /// </summary>
     public static class EffectRegistry
     {
-        private static readonly Dictionary<EffectId, IMedalEffect> Effects = BuildRegistry();
+        private static readonly Dictionary<EffectId, ICardEffect> Effects = BuildRegistry();
 
-        private static Dictionary<EffectId, IMedalEffect> BuildRegistry()
+        private static Dictionary<EffectId, ICardEffect> BuildRegistry()
         {
-            IMedalEffect[] all =
+            ICardEffect[] all =
             {
                 new DoubleShotEffect(),
                 new PositionChoiceEffect(),
@@ -31,7 +31,7 @@ namespace LinkShot.Core.Effects
                 new MiniBallEffect(),
             };
 
-            var dict = new Dictionary<EffectId, IMedalEffect>();
+            var dict = new Dictionary<EffectId, ICardEffect>();
             foreach (var effect in all)
             {
                 dict[effect.Id] = effect;
@@ -40,6 +40,6 @@ namespace LinkShot.Core.Effects
             return dict;
         }
 
-        public static IMedalEffect Get(EffectId id) => Effects[id];
+        public static ICardEffect Get(EffectId id) => Effects[id];
     }
 }

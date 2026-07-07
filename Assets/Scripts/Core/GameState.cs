@@ -8,21 +8,21 @@ namespace LinkShot.Core
     {
         public readonly int PlayerIndex;
         public readonly List<string> Hand = new List<string>();
-        public readonly HashSet<string> UsedMedalIds = new HashSet<string>();
+        public readonly HashSet<string> UsedCardIds = new HashSet<string>();
         public int DisposableWallCardsRemaining = GameConfig.DisposableWallCardCount;
 
         /// <summary>このラウンドで防御側として使い捨て壁カードを何枚使ったか（WALL_RETURN判定用、ラウンド開始時に0リセット）。</summary>
         public int DisposableWallCardsUsedThisRound;
 
-        /// <summary>このラウンドで伏せてセットしたメダルID（ラウンド中は不変）。</summary>
-        public string SetMedalId;
+        /// <summary>このラウンドで伏せてセットしたカードID（ラウンド中は不変）。</summary>
+        public string SetCardId;
 
         public int Score;
 
-        public PlayerState(int playerIndex, IEnumerable<string> deckMedalIds)
+        public PlayerState(int playerIndex, IEnumerable<string> deckCardIds)
         {
             PlayerIndex = playerIndex;
-            Hand.AddRange(deckMedalIds);
+            Hand.AddRange(deckCardIds);
         }
     }
 
@@ -48,7 +48,7 @@ namespace LinkShot.Core
     {
         public int Round = 1; // 1..RoundCount
         public int ShotIndex; // 0=先攻の攻撃, 1=後攻の攻撃
-        public Phase Phase = Phase.MedalSet;
+        public Phase Phase = Phase.CardSet;
         public readonly PlayerState[] Players = new PlayerState[2];
         public readonly int FirstAttackerPlayer; // 試合を通して固定される先攻P
         public readonly FieldState Field = new FieldState();
@@ -78,16 +78,16 @@ namespace LinkShot.Core
         public int CurrentAttacker => ShotIndex == 0 ? FirstAttackerPlayer : 1 - FirstAttackerPlayer;
         public int CurrentDefender => 1 - CurrentAttacker;
 
-        public Medal AttackerMedal => MedalCatalog.Get(Players[CurrentAttacker].SetMedalId);
-        public Medal DefenderMedal => MedalCatalog.Get(Players[CurrentDefender].SetMedalId);
+        public Card AttackerCard => CardCatalog.Get(Players[CurrentAttacker].SetCardId);
+        public Card DefenderCard => CardCatalog.Get(Players[CurrentDefender].SetCardId);
 
         /// <summary>
-        /// 攻撃側のメダル効果が発動するか（GAME_RULES.md 4.2章）。
-        /// ルールエンジンは非公開情報の制約を受けないため、両者のメダルが確定した時点でいつでも判定できる。
+        /// 攻撃側のカード効果が発動するか（GAME_RULES.md 4.2章）。
+        /// ルールエンジンは非公開情報の制約を受けないため、両者のカードが確定した時点でいつでも判定できる。
         /// </summary>
-        public bool CurrentShotEffectActivated => Elements.AttackerEffectActivates(AttackerMedal.Element, DefenderMedal.Element);
+        public bool CurrentShotEffectActivated => Elements.AttackerEffectActivates(AttackerCard.Element, DefenderCard.Element);
 
-        public bool BothMedalsSet => Players[0].SetMedalId != null && Players[1].SetMedalId != null;
+        public bool BothCardsSet => Players[0].SetCardId != null && Players[1].SetCardId != null;
 
         /// <summary>試合の勝者（0/1）。同点は引き分けでnull（GAME_RULES.md 1章）。Phase.MatchEnd到達後に参照する想定。</summary>
         public int? Winner

@@ -1,7 +1,7 @@
 namespace LinkShot.Core
 {
     /// <summary>
-    /// GAME_RULES.md / MEDALS.md に記載された【暫定】数値を含む、全ゲーム定数の一元管理場所。
+    /// GAME_RULES.md / CARDS.md に記載された【暫定】数値を含む、全ゲーム定数の一元管理場所。
     /// マジックナンバーはここにのみ置き、他のCore/コードから参照する。
     /// </summary>
     public static class GameConfig
@@ -12,12 +12,12 @@ namespace LinkShot.Core
         public const int TotalShots = RoundCount * ShotsPerRound;
 
         // --- 手持ちリソース (GAME_RULES.md 2章) ---
-        public const int MedalHandSize = 5;
+        public const int CardHandSize = 5;
         public const int DisposableWallCardCount = 5;
         public const int DefaultWallCountPerShot = 1;
 
-        // --- メダルプール・デッキ構築 (MEDALS.md 2章, 5.2章) ---
-        public const int MedalPoolSize = 15;
+        // --- カードプール・デッキ構築 (CARDS.md 2章, 5.2章) ---
+        public const int CardPoolSize = 15;
         public const int DeckSize = 5;
         public const int LegendaryDeckLimit = 1;
         public const int RareDeckLimit = 2;
@@ -49,7 +49,7 @@ namespace LinkShot.Core
         // --- 物理 (ARCHITECTURE.md 2.2章) ---
         public const float WallRestitution = 1.0f; // 【暫定】完全弾性
 
-        // --- メダル効果パラメータ (MEDALS.md 3章, 4章) ---
+        // --- カード効果パラメータ (CARDS.md 3章, 4章) ---
         public const float WideGateHitboxMultiplier = 1.3f; // 【暫定】
         public const float PowerShotVelocityMultiplier = 1.5f; // 【暫定】
         public const float MiniBallSizeMultiplier = 0.7f; // 【暫定】

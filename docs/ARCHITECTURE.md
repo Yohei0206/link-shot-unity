@@ -7,7 +7,7 @@
 | エンジン | **Unity（LTS版・2D テンプレート）** | WebGLビルドで unityroom に公開する |
 | 言語 | C# | |
 | 物理演算 | Unity 2D Physics（Box2Dベース: Rigidbody2D / Collider2D） | ボールの飛翔・壁/バウンド板との反射のみに使用 |
-| UI | uGUI（Canvas） | メダル選択・壁配置UI・スコア表示・ログ |
+| UI | uGUI（Canvas） | カード選択・壁配置UI・スコア表示・ログ |
 | テスト | Unity Test Framework（NUnit） | `Core/` のルールエンジンを対象（EditModeテスト） |
 | 公開先 | **unityroom**（Unity WebGL） | |
 | バックエンド | Supabase REST API（Phase 3のみ・UnityWebRequest経由） | 非同期対戦のデータ保存 |
@@ -28,15 +28,15 @@ Assets/
 ├── Scripts/
 │   ├── Core/           ← 純粋C#。UnityEngineに依存しない（usingしない）
 │   │   ├── GameConfig.cs      ← 全ゲーム数値の定数（得点、枚数、半径、暫定値すべて）
-│   │   ├── Types.cs           ← Medal, Element, WallCard, TargetZone等の型定義
+│   │   ├── Types.cs           ← Card, Element, WallCard, TargetZone等の型定義
 │   │   ├── GameState.cs       ← 試合全体の状態
 │   │   ├── PhaseMachine.cs    ← フェーズ進行のステートマシン
 │   │   ├── Elements.cs        ← 属性三すくみの判定ロジック
-│   │   ├── Effects/           ← メダル効果（strategyパターンで1効果1ファイル）
-│   │   │   ├── IMedalEffect.cs
+│   │   ├── Effects/           ← カード効果（strategyパターンで1効果1ファイル）
+│   │   │   ├── ICardEffect.cs
 │   │   │   ├── WallRemoveEffect.cs
-│   │   │   ├── ...（MEDALS.md記載の15種）
-│   │   ├── MedalCatalog.cs    ← 15枚のメダルプール定義（データ駆動）
+│   │   │   ├── ...（CARDS.md記載の15種）
+│   │   ├── CardCatalog.cs    ← 15枚のカードプール定義（データ駆動）
 │   │   ├── Scoring.cs         ← 得点計算
 │   │   └── Rng.cs             ← 乱数（サイコロ）。seed注入可能にしてテスト可能に
 │   │
@@ -44,10 +44,10 @@ Assets/
 │   │   ├── FieldView.cs       ← フィールド・壁・的・発射円の描画
 │   │   ├── BallController.cs  ← ボールの物理（Rigidbody2D）と接触検出
 │   │   ├── SlingshotInput.cs  ← スリングショット入力（ドラッグ→初速ベクトル）
-│   │   └── EffectVisuals.cs   ← メダル効果の演出反映（壁除去・バウンド板生成等）
+│   │   └── EffectVisuals.cs   ← カード効果の演出反映（壁除去・バウンド板生成等）
 │   │
 │   ├── UI/             ← uGUI層
-│   │   ├── MedalSelectPanel.cs
+│   │   ├── CardSelectPanel.cs
 │   │   ├── WallPlacementPanel.cs
 │   │   ├── ScoreBoard.cs
 │   │   ├── HistoryLog.cs
@@ -62,7 +62,7 @@ Assets/
 │   ├── DeckSelect.unity
 │   ├── Match.unity
 │   └── Result.unity
-├── Prefabs/            ← 壁・ボール・的・バウンド板・メダルカードUI
+├── Prefabs/            ← 壁・ボール・的・バウンド板・カードカードUI
 └── Tests/
     └── EditMode/       ← Core/ のユニットテスト（NUnit）
 ```
@@ -89,10 +89,10 @@ Assets/
 
 ```csharp
 public enum Phase {
-    MedalSet,        // 準備フェーズ
+    CardSet,        // 準備フェーズ
     WallPlacement,   // 壁選択フェーズ（shotIndexで1回目/2回目を区別）
     PositionRoll,    // 発射ポジション決定
-    EffectResolve,   // メダル効果解決
+    EffectResolve,   // カード効果解決
     Shot,            // ショットフェーズ
     ScoreResolve,    // 得点解決
     MatchEnd
@@ -112,10 +112,10 @@ public class GameState {
 - 状態遷移は `Dispatch(action)` 形式で実装し、`(state, action) => state` を純粋に保ってテスト可能にする
 - MonoBehaviourはCore/に持ち込まない。Match.unityシーンに1つの `MatchDirector : MonoBehaviour` を置き、Core/のステートマシンを駆動して各Viewに反映する（Humble Objectパターン）
 
-### 2.4 メダル効果の抽象化
+### 2.4 カード効果の抽象化
 
 ```csharp
-public interface IMedalEffect {
+public interface ICardEffect {
     EffectId Id { get; }
     // 発動タイミングごとのフック（該当しないものは何もしない）
     void OnResolve(GameState state);      // 効果解決フェーズ（壁除去・バウンド板等）
@@ -124,7 +124,7 @@ public interface IMedalEffect {
 }
 ```
 
-新しい効果の追加は `Core/Effects/` にクラスを1つ足して `MedalCatalog` に登録するだけで済む構造にする。
+新しい効果の追加は `Core/Effects/` にクラスを1つ足して `CardCatalog` に登録するだけで済む構造にする。
 
 ## 3. Claude Code + Unity MCP での開発
 
@@ -167,7 +167,7 @@ public interface IMedalEffect {
 
 - WebGLからはWebSocketの安定性に注意が必要なため、**Realtime購読ではなくポーリング方式を第一候補**とする【暫定】
 - UnityWebRequestでSupabase REST API（PostgREST）を叩く。公式SDKには依存しない
-- テーブル案: `matches` / `match_actions`（メダルセット・壁配置・ショット結果の逐次ログ）
+- テーブル案: `matches` / `match_actions`（カードセット・壁配置・ショット結果の逐次ログ）
 - 認証は匿名キー＋行レベルセキュリティから始める
 
 ## 5. 画面構成
@@ -176,7 +176,7 @@ public interface IMedalEffect {
 | :---- | :---- |
 | Title | モード選択（ローカル対戦 / CPU戦 / オンライン） |
 | DeckSelect | 15枚から5枚を選ぶ（ローカル対戦では交互に選択） |
-| Match | フィールド＋uGUIオーバーレイ（スコア/ラウンド/メダル履歴/フェーズ案内） |
+| Match | フィールド＋uGUIオーバーレイ（スコア/ラウンド/カード履歴/フェーズ案内） |
 | Result | 最終スコアと勝敗、ショット履歴の振り返り |
 
 - 横持ち16:9基準のレイアウト（unityroomはPCブラウザ中心のため。Canvas Scalerでスマホ等の他アスペクト比にも対応する）

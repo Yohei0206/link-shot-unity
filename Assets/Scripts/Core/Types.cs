@@ -8,7 +8,7 @@ namespace LinkShot.Core
         GAMMA,
     }
 
-    /// <summary>メダルのレアリティ（MEDALS.md 2章）。</summary>
+    /// <summary>カードのレアリティ（CARDS.md 2章）。</summary>
     public enum Rarity
     {
         Common,
@@ -16,7 +16,7 @@ namespace LinkShot.Core
         Legendary,
     }
 
-    /// <summary>メダル効果の識別子（GAME_RULES.md 4.3章 / MEDALS.md 3-4章、計15種）。</summary>
+    /// <summary>カード効果の識別子（GAME_RULES.md 4.3章 / CARDS.md 3-4章、計15種）。</summary>
     public enum EffectId
     {
         // ★★★ レジェンド（属性固定）
@@ -42,7 +42,7 @@ namespace LinkShot.Core
     /// <summary>1ラウンド内のフェーズ（GAME_RULES.md 3章）。</summary>
     public enum Phase
     {
-        MedalSet,
+        CardSet,
         WallPlacement,
         PositionRoll,
         EffectResolve,
@@ -144,8 +144,8 @@ namespace LinkShot.Core
         public int ShotIndex; // 0=先攻の攻撃, 1=後攻の攻撃
         public int Attacker;
         public int Defender;
-        public string AttackerMedalId;
-        public string DefenderMedalId;
+        public string AttackerCardId;
+        public string DefenderCardId;
         public bool EffectActivated;
         public ShotOutcomeKind Outcome;
         public int Score;

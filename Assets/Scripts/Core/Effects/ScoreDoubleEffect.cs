@@ -1,7 +1,7 @@
 namespace LinkShot.Core.Effects
 {
-    /// <summary>得点2倍。このショットで獲得する得点が2倍になる（MEDALS.md 4章#10）。</summary>
-    public sealed class ScoreDoubleEffect : MedalEffectBase
+    /// <summary>得点2倍。このショットで獲得する得点が2倍になる（CARDS.md 4章#10）。</summary>
+    public sealed class ScoreDoubleEffect : CardEffectBase
     {
         public override EffectId Id => EffectId.ScoreDouble;
 
