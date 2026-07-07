@@ -34,6 +34,7 @@ namespace LinkShot.Game
         private PositionRollPanel _positionRollPanel;
         private EffectChoicePanel _effectChoicePanel;
         private HudPanel _hudPanel;
+        private ResultPanel _resultPanel;
 
         private void Start()
         {
@@ -47,7 +48,18 @@ namespace LinkShot.Game
             CreateBall();
             CreateUI();
 
-            StartCoroutine(RunPreMatch());
+            StartCoroutine(RunGameLoop());
+        }
+
+        /// <summary>デッキ選択→対戦→リザルトを1試合ぶん行い、「もう一度遊ぶ」で最初から繰り返す。</summary>
+        private IEnumerator RunGameLoop()
+        {
+            while (true)
+            {
+                yield return RunPreMatch();
+                yield return RunMatch();
+                yield return RunResultPhase();
+            }
         }
 
         /// <summary>対戦開始前に、両プレイヤーがデッキ（15種から{GameConfig.DeckSize}枚）を選ぶ。</summary>
@@ -75,7 +87,14 @@ namespace LinkShot.Game
             yield return new WaitUntil(() => concealed);
 
             _state = new GameState(decks[0], decks[1]);
-            StartCoroutine(RunMatch());
+        }
+
+        /// <summary>(12) リザルト画面: 最終スコア・勝敗・全ショット履歴を表示し、「もう一度遊ぶ」を待つ。</summary>
+        private IEnumerator RunResultPhase()
+        {
+            bool restart = false;
+            _resultPanel.Show(_state, () => restart = true);
+            yield return new WaitUntil(() => restart);
         }
 
         private static void SetUpCamera()
@@ -156,6 +175,7 @@ namespace LinkShot.Game
             _effectChoicePanel = CreateFullScreenPanel<EffectChoicePanel>(canvas.transform, "EffectChoicePanel");
             _effectChoicePanel.Configure(_fieldView, Camera.main);
             _hudPanel = CreateFullScreenPanel<HudPanel>(canvas.transform, "HudPanel");
+            _resultPanel = CreateFullScreenPanel<ResultPanel>(canvas.transform, "ResultPanel");
         }
 
         private static T CreateFullScreenPanel<T>(Transform parent, string name) where T : Component
@@ -198,7 +218,6 @@ namespace LinkShot.Game
             }
 
             UpdateHudStatus();
-            LogMatchEnd();
         }
 
         private IEnumerator RunCardSetPhase()
@@ -458,14 +477,5 @@ namespace LinkShot.Game
             _hudPanel.UpdateStatus(_state.Round, GameConfig.RoundCount, _state.Players[0].Score, _state.Players[1].Score, phaseLabel);
         }
 
-        private void LogMatchEnd()
-        {
-            int p0 = _state.Players[0].Score;
-            int p1 = _state.Players[1].Score;
-            string result = _state.Winner == null ? "引き分け" : $"プレイヤー{_state.Winner + 1}の勝利";
-            string message = $"試合終了\nP1: {p0}  -  P2: {p1}\n{result}";
-            Debug.Log($"[試合終了] P0={p0} / P1={p1} → {result}");
-            _hudPanel.ShowResult(message, () => { });
-        }
     }
 }
