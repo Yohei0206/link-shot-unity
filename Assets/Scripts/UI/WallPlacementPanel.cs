@@ -8,7 +8,8 @@ using UnityEngine.UI;
 namespace LinkShot.UI
 {
     /// <summary>
-    /// (2)(7) 壁選択フェーズ: 防御側が常設壁1個(必須)＋使い捨て壁カード0枚以上を5x2グリッドに配置する（GAME_RULES.md 7章）。
+    /// (2)(7) 壁選択フェーズ: 防御側が常設壁1個(必須)＋使い捨て壁カード0枚以上をグリッドに配置する
+    /// （列数・行数はGameConfig.WallGridColumns/Rows参照。GAME_RULES.md 7章）。
     /// 壁配置は公開情報のため、HandoverScreenでの秘匿は不要（GAME_RULES.md 3章補足）。
     /// モーダル背景は出さず、盤面（FieldView）の壁配置エリアに直接タップ判定を重ねる。
     /// タップ判定は掴みやすいようセル全体を使うが、見た目（プレビュー）はFieldViewで実際に生成される
@@ -17,7 +18,10 @@ namespace LinkShot.UI
     public class WallPlacementPanel : MonoBehaviour
     {
         private static readonly Color EmptyColor = new Color(1f, 1f, 1f, 0f);
-        private static readonly Color HitAreaColor = new Color(1f, 1f, 1f, 0.18f);
+
+        // タップ判定の当たり判定エリアは常に透明にする（見た目は壁プレビューのIndicatorだけに任せる。
+        // ユーザーからのフィードバック: 配置前の半透明の網掛けが邪魔なので消してほしい）。
+        private static readonly Color HitAreaColor = new Color(1f, 1f, 1f, 0f);
 
         private Text _titleText;
         private Text _remainingText;

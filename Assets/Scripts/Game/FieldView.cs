@@ -16,6 +16,9 @@ namespace LinkShot.Game
         // 的帯・壁帯だけは発射エリアより横幅を広く使う（見た目の帯構成、GAME_RULES.md 7章とは別の演出調整）。
         public const float WideBandWidth = 9f;
 
+        // 壁配置エリアは的帯よりさらに広く、画面端（16:9基準）まで届かせる。
+        public const float WallBandWidth = FieldHeight * 16f / 9f;
+
         // 壁1枚の見た目サイズ（壁グリッド1セルに対する比率）。UI/WallPlacementPanelのプレビューもこれを参照し、
         // 隣接セルに置いたときに隙間ができる見た目に合わせる。
         public const float WallVisualWidthRatio = 0.5f;
@@ -31,7 +34,6 @@ namespace LinkShot.Game
 
         private const string PhysicsSpritePath = "Field/Kenney/Physics/";
         private const string LaunchRingSpritePath = "UI/Kenney/PNG/Blue/Default/icon_outline_circle";
-        private const string WallSlotSpritePath = "UI/Kenney/PNG/Blue/Default/button_square_line";
         private const string TinyFarmSpritePath = "Field/Kenney/TinyFarm/";
 
         // 農園演出は的・壁・発射円より必ず後ろに描画する（当たり判定には関与しない見た目のみの装飾）。
@@ -59,6 +61,10 @@ namespace LinkShot.Game
         // 拡大されてしまう(16pxタイルはタイルマップの密な並びで見る前提のため)ので、地色の単色塗りのみにする。
         private static readonly Color FarmGrassGroundColor = new Color(78f / 255f, 151f / 255f, 76f / 255f);
 
+        // Kenney Tiny Farmの畝タイル(tile_0049/0050)の地色。壁配置エリアだけ地面を土にして、
+        // 芝エリア（的・発射円まわり）と一目で区別できるようにする。
+        private static readonly Color FarmDirtGroundColor = new Color(184f / 255f, 101f / 255f, 66f / 255f);
+
         /// <summary>
         /// Kenney "Tiny Farm"（CC0）を使った背景演出。地色を敷き詰めたうえで、
         /// 帯の外側（壁・的・発射円の当たり判定には使われないx範囲）に木・茂み・岩を並べる。
@@ -79,7 +85,8 @@ namespace LinkShot.Game
         // 各アイテムのXを少しずつジグザグにずらして自然な散らばりにする。
         private void BuildFarmDecorations()
         {
-            float marginX = WideBandWidth / 2f + 0.3f;
+            // 壁配置エリア（ダート、WallBandWidth）が的帯より広いため、木・茂み・岩はその外側（芝の上）に置く。
+            float marginX = WallBandWidth / 2f + 0.3f;
 
             CreateDecoration("tile_0027", new Vector2(-marginX - 0.2f, 3.4f), 1.6f);
             CreateDecoration("tile_0015", new Vector2(-marginX + 0.5f, 1.9f), 1.2f);
@@ -178,27 +185,17 @@ namespace LinkShot.Game
         }
 
         /// <summary>
-        /// 壁配置エリア（GAME_RULES.md 7章の帯）を、盤面に常時埋め込まれた10マスの枠として表示する。
-        /// 実際に置かれる壁（ApplyWalls）と同じ幅・高さの枠にして、選択時に見える「壁を置ける範囲」と
-        /// 実際に置かれる壁の範囲・当たり判定が一致するようにする。
+        /// 壁配置エリア（GAME_RULES.md 7章の帯）の地面を土にして、芝エリアと一目で区別できるようにする。
+        /// 個別マスの枠線は表示せず、地面の見た目だけでエリアを示す（実際に置ける範囲・当たり判定は
+        /// WallPlacementPanelのタップ判定とApplyWallsが担う）。
         /// </summary>
         private void BuildWallAreaBackground()
         {
-            Vector2 cellSize = GetWallCellSize();
-            float slotWidth = cellSize.x * WallVisualWidthRatio;
-            float slotHeight = cellSize.y * WallVisualHeightRatio;
-            Sprite slotSprite = Resources.Load<Sprite>(WallSlotSpritePath);
+            var go = new GameObject("WallAreaGround");
+            go.transform.SetParent(transform);
+            go.transform.position = new Vector2(0f, (FractionToWorldY(TargetBandBottomFraction) + FractionToWorldY(WallBandBottomFraction)) / 2f);
 
-            for (int i = 0; i < GameConfig.WallGridCellCount; i++)
-            {
-                Vector2 center = GetWallCellCenter(i);
-
-                var go = new GameObject($"WallSlot_{i}");
-                go.transform.SetParent(transform);
-                go.transform.position = center;
-
-                AddVisual(go, slotWidth, slotHeight, new Color(1f, 1f, 1f, 0.25f), slotSprite).sortingOrder = -1;
-            }
+            AddVisual(go, WallBandWidth, WallBandHeight(), FarmDirtGroundColor).sortingOrder = BackgroundSortingOrder + 1;
         }
 
         private void BuildLaunchPositions()
@@ -252,7 +249,7 @@ namespace LinkShot.Game
 
             var collider = go.AddComponent<BoxCollider2D>();
             collider.isTrigger = true;
-            float boundaryWidth = Mathf.Max(FieldWidth, WideBandWidth);
+            float boundaryWidth = Mathf.Max(FieldWidth, Mathf.Max(WideBandWidth, WallBandWidth));
             collider.size = new Vector2(boundaryWidth * 1.1f, FieldHeight * 1.1f);
 
             go.AddComponent<OutOfFieldMarker>();
@@ -268,7 +265,7 @@ namespace LinkShot.Game
 
             _wallObjects.Clear();
 
-            float cellWidth = WideBandWidth / GameConfig.WallGridColumns;
+            float cellWidth = WallBandWidth / GameConfig.WallGridColumns;
             float cellHeight = WallBandHeight() / GameConfig.WallGridRows;
             float wallWidth = cellWidth * WallVisualWidthRatio;
             float wallHeight = cellHeight * WallVisualHeightRatio;
@@ -306,7 +303,7 @@ namespace LinkShot.Game
 
             _bounceBoardObjects.Clear();
 
-            float size = FieldWidth / GameConfig.WallGridColumns * 0.8f;
+            float size = FieldWidth * GameConfig.BounceBoardSizeRatio;
 
             foreach (BouncePlacement board in boards)
             {
@@ -348,7 +345,7 @@ namespace LinkShot.Game
         /// <summary>壁グリッド1セル分のワールドサイズ（幅・高さ）。</summary>
         public Vector2 GetWallCellSize()
         {
-            float cellWidth = WideBandWidth / GameConfig.WallGridColumns;
+            float cellWidth = WallBandWidth / GameConfig.WallGridColumns;
             float cellHeight = WallBandHeight() / GameConfig.WallGridRows;
             return new Vector2(cellWidth, cellHeight);
         }
@@ -376,11 +373,11 @@ namespace LinkShot.Game
             int row = cellIndex / columns;
             int col = cellIndex % columns;
 
-            float cellWidth = WideBandWidth / columns;
+            float cellWidth = WallBandWidth / columns;
             float cellHeight = WallBandHeight() / GameConfig.WallGridRows;
             float bandTopY = FractionToWorldY(TargetBandBottomFraction);
 
-            float x = -WideBandWidth / 2f + cellWidth * (col + 0.5f);
+            float x = -WallBandWidth / 2f + cellWidth * (col + 0.5f);
             float y = bandTopY - cellHeight * (row + 0.5f);
             return new Vector2(x, y);
         }

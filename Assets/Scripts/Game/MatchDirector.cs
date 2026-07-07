@@ -69,9 +69,9 @@ namespace LinkShot.Game
             camera.orthographic = true;
 
             // Game Viewの縦横比がフィールドと異なる場合でも全体が収まるようにレターボックス的に合わせる。
-            // 壁帯・的帯はFieldWidthより横幅が広い(FieldView.WideBandWidth)ため、そちらが画面外に
-            // 切れないよう、幅の基準は両者のうち広い方を使う。
-            float contentWidth = Mathf.Max(FieldView.FieldWidth, FieldView.WideBandWidth);
+            // 壁帯・的帯・発射帯で横幅が異なる(FieldView.WallBandWidth > WideBandWidth > FieldWidth)ため、
+            // そちらが画面外に切れないよう、幅の基準は3つのうち最も広いものを使う。
+            float contentWidth = Mathf.Max(FieldView.FieldWidth, Mathf.Max(FieldView.WideBandWidth, FieldView.WallBandWidth));
             float targetAspect = contentWidth / FieldView.FieldHeight;
             float screenAspect = (float)Screen.width / Screen.height;
             camera.orthographicSize = screenAspect >= targetAspect

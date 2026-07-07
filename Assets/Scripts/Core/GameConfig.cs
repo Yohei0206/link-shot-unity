@@ -38,7 +38,7 @@ namespace LinkShot.Core
         public const int BonusZoneCount = 10;
 
         // --- フィールドレイアウト (GAME_RULES.md 7章) ---
-        public const int WallGridColumns = 5;
+        public const int WallGridColumns = 12; // 壁配置エリアの拡張(FieldView.WallBandWidth)に合わせ、置ける位置を増やす【暫定】
         public const int WallGridRows = 2;
         public const int WallGridCellCount = WallGridColumns * WallGridRows;
 
@@ -48,6 +48,7 @@ namespace LinkShot.Core
 
         // --- 物理 (ARCHITECTURE.md 2.2章) ---
         public const float WallRestitution = 1.0f; // 【暫定】完全弾性
+        public const float BounceBoardSizeRatio = 0.16f; // フィールド幅比（WallGridColumnsからは独立した見た目サイズ）
 
         // --- カード効果パラメータ (CARDS.md 3章, 4章) ---
         public const float WideGateHitboxMultiplier = 1.3f; // 【暫定】
