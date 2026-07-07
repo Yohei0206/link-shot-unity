@@ -20,13 +20,6 @@ namespace LinkShot.Game
         private const float BallBaseDiameter = 0.55f;
         private const float BaseLaunchSpeed = 8f;
 
-        // UI/DeckSelect未実装のための暫定デッキ。対象選択が必要な効果（WALL_REMOVE/BOUNCE_BOARD/
-        // WALL_SHIFT/WIDE_GATE/POSITION_CHOICE）を一通り実プレイで確認できる組み合わせにしてある。
-        private static readonly List<string> PlaceholderDeck = new List<string>
-        {
-            "WALL_REMOVE_ALPHA", "BOUNCE_BOARD_BETA", "WALL_SHIFT_ALPHA", "WIDE_GATE_GAMMA", "POSITION_CHOICE",
-        };
-
         private GameState _state;
         private FieldView _fieldView;
         private GameObject _ballObject;
@@ -35,6 +28,7 @@ namespace LinkShot.Game
         private SlingshotInput _slingshotInput;
 
         private HandoverScreen _handoverScreen;
+        private DeckSelectPanel _deckSelectPanel;
         private CardSelectPanel _cardSelectPanel;
         private WallPlacementPanel _wallPlacementPanel;
         private PositionRollPanel _positionRollPanel;
@@ -53,13 +47,34 @@ namespace LinkShot.Game
             CreateBall();
             CreateUI();
 
-            if (!CardCatalog.IsValidDeck(PlaceholderDeck, out string error))
+            StartCoroutine(RunPreMatch());
+        }
+
+        /// <summary>対戦開始前に、両プレイヤーがデッキ（15種から{GameConfig.DeckSize}枚）を選ぶ。</summary>
+        private IEnumerator RunPreMatch()
+        {
+            var decks = new List<string>[2];
+
+            for (int player = 0; player < 2; player++)
             {
-                Debug.LogError($"[MatchDirector] 暫定デッキが不正です: {error}");
-                return;
+                int currentPlayer = player;
+
+                bool handoverDone = false;
+                _handoverScreen.Show($"プレイヤー{currentPlayer + 1}に交代してください\nタップしてデッキを選んでください", () => handoverDone = true);
+                yield return new WaitUntil(() => handoverDone);
+
+                List<string> chosenDeck = null;
+                _deckSelectPanel.Show(currentPlayer, deck => chosenDeck = new List<string>(deck));
+                yield return new WaitUntil(() => chosenDeck != null);
+
+                decks[currentPlayer] = chosenDeck;
             }
 
-            _state = new GameState(new List<string>(PlaceholderDeck), new List<string>(PlaceholderDeck));
+            bool concealed = false;
+            _handoverScreen.Show("デッキが揃いました\nタップして対戦開始", () => concealed = true);
+            yield return new WaitUntil(() => concealed);
+
+            _state = new GameState(decks[0], decks[1]);
             StartCoroutine(RunMatch());
         }
 
@@ -133,6 +148,7 @@ namespace LinkShot.Game
             Canvas canvas = UITheme.CreateCanvas("UICanvas", transform, 10);
 
             _handoverScreen = CreateFullScreenPanel<HandoverScreen>(canvas.transform, "HandoverScreen");
+            _deckSelectPanel = CreateFullScreenPanel<DeckSelectPanel>(canvas.transform, "DeckSelectPanel");
             _cardSelectPanel = CreateFullScreenPanel<CardSelectPanel>(canvas.transform, "CardSelectPanel");
             _wallPlacementPanel = CreateFullScreenPanel<WallPlacementPanel>(canvas.transform, "WallPlacementPanel");
             _wallPlacementPanel.Configure(_fieldView, Camera.main);
