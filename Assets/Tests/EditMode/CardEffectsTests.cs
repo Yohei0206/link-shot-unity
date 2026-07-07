@@ -120,10 +120,10 @@ namespace LinkShot.Core.Tests
             TestHelpers.PlaceDefaultWallOnly(state);
             PhaseMachine.Dispatch(state, new RollPositionAction());
 
-            var choice = new EffectChoice { WideGateZone = TargetZoneId.Center };
+            var choice = new EffectChoice { WideGateZone = TargetZoneId.Score300 };
             PhaseMachine.Dispatch(state, new ResolveEffectAction(choice));
 
-            Assert.AreEqual(TargetZoneId.Center, state.Field.WideGateZone);
+            Assert.AreEqual(TargetZoneId.Score300, state.Field.WideGateZone);
         }
 
         [Test]
@@ -148,9 +148,9 @@ namespace LinkShot.Core.Tests
             TestHelpers.PlaceDefaultWallOnly(state);
             PhaseMachine.Dispatch(state, new RollPositionAction());
             PhaseMachine.Dispatch(state, new ResolveEffectAction(default));
-            PhaseMachine.Dispatch(state, new SubmitShotResultAction(ShotOutcomeKind.TargetHit, TargetZoneId.Center));
+            PhaseMachine.Dispatch(state, new SubmitShotResultAction(ShotOutcomeKind.WallHit, new[] { TargetZoneId.Score300 }));
 
-            Assert.AreEqual(GameConfig.CenterZoneScore * 2, state.History[0].Score);
+            Assert.AreEqual(GameConfig.Score300Value * 2, state.History[0].Score);
         }
 
         [Test]
@@ -197,7 +197,7 @@ namespace LinkShot.Core.Tests
             PhaseMachine.Dispatch(state, new PlaceWallsAction(0, new List<int> { 5 })); // 防御側(player1)が使い捨てを1枚使用
             PhaseMachine.Dispatch(state, new RollPositionAction());
             PhaseMachine.Dispatch(state, new ResolveEffectAction(default));
-            PhaseMachine.Dispatch(state, new SubmitShotResultAction(ShotOutcomeKind.TargetHit, TargetZoneId.Center));
+            PhaseMachine.Dispatch(state, new SubmitShotResultAction(ShotOutcomeKind.WallHit, new[] { TargetZoneId.Score300 }));
 
             Assert.AreEqual(attackerBefore + 1, state.Players[0].DisposableWallCardsRemaining);
         }
@@ -211,7 +211,7 @@ namespace LinkShot.Core.Tests
             TestHelpers.PlaceDefaultWallOnly(state); // 防御側は使い捨てカードを使わない
             PhaseMachine.Dispatch(state, new RollPositionAction());
             PhaseMachine.Dispatch(state, new ResolveEffectAction(default));
-            PhaseMachine.Dispatch(state, new SubmitShotResultAction(ShotOutcomeKind.TargetHit, TargetZoneId.Center));
+            PhaseMachine.Dispatch(state, new SubmitShotResultAction(ShotOutcomeKind.WallHit, new[] { TargetZoneId.Score300 }));
 
             Assert.AreEqual(attackerBefore, state.Players[0].DisposableWallCardsRemaining);
         }

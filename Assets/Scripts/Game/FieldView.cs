@@ -46,12 +46,13 @@ namespace LinkShot.Game
 
         private readonly List<GameObject> _wallObjects = new List<GameObject>();
         private readonly List<GameObject> _bounceBoardObjects = new List<GameObject>();
+        private readonly List<GameObject> _targetObjects = new List<GameObject>();
         private readonly Dictionary<int, GameObject> _launchMarkers = new Dictionary<int, GameObject>();
 
         public void BuildStaticField()
         {
             BuildFarmBackground();
-            BuildTargets();
+            RebuildTargets();
             BuildWallAreaBackground();
             BuildLaunchPositions();
             BuildOutOfFieldBoundary();
@@ -113,52 +114,71 @@ namespace LinkShot.Game
             return FieldHeight / 2f - fraction * FieldHeight;
         }
 
-        private void BuildTargets()
-        {
-            float cornerRadius = FieldWidth * GameConfig.CornerZoneRadiusRatio;
-            float centerRadius = FieldWidth * GameConfig.CenterZoneRadiusRatio;
-            float bandCenterY = FractionToWorldY(TargetBandBottomFraction / 2f);
-
-            CreateTarget(TargetZoneId.TopLeftCorner, new Vector2(-WideBandWidth * 0.32f, bandCenterY + 0.3f), cornerRadius, Color.white);
-            CreateTarget(TargetZoneId.TopRightCorner, new Vector2(WideBandWidth * 0.32f, bandCenterY + 0.3f), cornerRadius, Color.white);
-            CreateTarget(TargetZoneId.Center, new Vector2(0f, bandCenterY - 0.3f), centerRadius, Color.white);
-
-            BuildBonusTargets();
-        }
-
-        // 見た目のにぎやかし・得点バリエーション用に追加した10個の小さい的の相対座標（【暫定】得点はGameConfig.BonusZoneScore）。
-        // グリッド状に並べると角の的・中央の的と重なる、または詰まって見えるため、
-        // 他の的およびボーナス的同士が重ならないよう間隔を空けつつ手動でばらけさせた配置にする。
-        private static readonly Vector2[] BonusOffsets =
-        {
-            new Vector2(-4.0f, 0.40f),
-            new Vector2(-3.6f, -0.50f),
-            new Vector2(-2.0f, 0.55f),
-            new Vector2(-1.6f, -0.55f),
-            new Vector2(-0.8f, 0.10f),
-            new Vector2(0.9f, 0.15f),
-            new Vector2(1.7f, -0.58f),
-            new Vector2(2.1f, 0.58f),
-            new Vector2(3.7f, -0.45f),
-            new Vector2(4.1f, 0.35f),
-        };
+        // 的同士・帯の端との最小間隔（ワールド単位）。
+        private const float TargetPlacementMargin = 0.08f;
+        private const int TargetPlacementMaxAttempts = 300;
 
         /// <summary>
-        /// 見た目のにぎやかし・得点バリエーション用に追加した10個の小さい的（【暫定】得点はGameConfig.BonusZoneScore）。
-        /// 的帯（GAME_RULES.md 7章）の中で、角・中央の的と重ならないようまばらに配置する。
+        /// 的（貫通式、GAME_RULES.md 5.1章）をショットごとに新しくランダム配置し直す。
+        /// 500点1個・300点3個・100点12個を、的帯（TargetBandBottomFraction内、WideBandWidth幅）の中で
+        /// 重ならないように配置する。位置に意味はないため、先攻/後攻ごとに毎回作り直してよい。
         /// </summary>
-        private void BuildBonusTargets()
+        public void RebuildTargets()
         {
-            float radius = FieldWidth * GameConfig.BonusZoneRadiusRatio;
-            float baseY = FractionToWorldY(TargetBandBottomFraction / 2f);
-
-            foreach (Vector2 offset in BonusOffsets)
+            foreach (GameObject go in _targetObjects)
             {
-                CreateTarget(TargetZoneId.Bonus, new Vector2(offset.x, baseY + offset.y), radius, new Color(1f, 0.55f, 0.15f));
+                Destroy(go);
+            }
+
+            _targetObjects.Clear();
+
+            var placed = new List<(Vector2 position, float radius)>();
+            PlaceRandomTargets(TargetZoneId.Score500, GameConfig.Score500Count, FieldWidth * GameConfig.Score500RadiusRatio, placed);
+            PlaceRandomTargets(TargetZoneId.Score300, GameConfig.Score300Count, FieldWidth * GameConfig.Score300RadiusRatio, placed);
+            PlaceRandomTargets(TargetZoneId.Score100, GameConfig.Score100Count, FieldWidth * GameConfig.Score100RadiusRatio, placed);
+        }
+
+        private void PlaceRandomTargets(TargetZoneId zoneId, int count, float radius, List<(Vector2 position, float radius)> placed)
+        {
+            float halfWidth = WideBandWidth / 2f - radius - TargetPlacementMargin;
+            float yTop = FieldHeight / 2f - radius - TargetPlacementMargin;
+            float yBottom = FractionToWorldY(TargetBandBottomFraction) + radius + TargetPlacementMargin;
+
+            for (int i = 0; i < count; i++)
+            {
+                Vector2 position = default;
+
+                for (int attempt = 0; attempt < TargetPlacementMaxAttempts; attempt++)
+                {
+                    position = new Vector2(
+                        Random.Range(-halfWidth, halfWidth),
+                        Random.Range(yBottom, yTop));
+
+                    if (!OverlapsAny(position, radius, placed))
+                    {
+                        break;
+                    }
+                }
+
+                placed.Add((position, radius));
+                CreateTarget(zoneId, position, radius);
             }
         }
 
-        private void CreateTarget(TargetZoneId zoneId, Vector2 position, float radius, Color tint)
+        private static bool OverlapsAny(Vector2 position, float radius, List<(Vector2 position, float radius)> placed)
+        {
+            foreach ((Vector2 otherPosition, float otherRadius) in placed)
+            {
+                if (Vector2.Distance(position, otherPosition) < radius + otherRadius + TargetPlacementMargin)
+                {
+                    return true;
+                }
+            }
+
+            return false;
+        }
+
+        private void CreateTarget(TargetZoneId zoneId, Vector2 position, float radius)
         {
             var go = new GameObject($"Target_{zoneId}_{position.x:0.00}_{position.y:0.00}");
             go.transform.SetParent(transform);
@@ -172,13 +192,16 @@ namespace LinkShot.Game
             marker.ZoneId = zoneId;
             marker.BaseRadius = radius;
 
-            Sprite sprite = zoneId switch
+            // 見た目は既存のKenneyスプライトを流用し、階層は色で見分ける（500=金の星、300=銀貨、100=橙の銀貨）。
+            (Sprite sprite, Color tint) = zoneId switch
             {
-                TargetZoneId.Center => Resources.Load<Sprite>(PhysicsSpritePath + "coinSilver"),
-                TargetZoneId.Bonus => Resources.Load<Sprite>(PhysicsSpritePath + "coinSilver"),
-                _ => Resources.Load<Sprite>(PhysicsSpritePath + "starGold"),
+                TargetZoneId.Score500 => (Resources.Load<Sprite>(PhysicsSpritePath + "starGold"), Color.white),
+                TargetZoneId.Score300 => (Resources.Load<Sprite>(PhysicsSpritePath + "coinSilver"), Color.white),
+                _ => (Resources.Load<Sprite>(PhysicsSpritePath + "coinSilver"), new Color(1f, 0.55f, 0.15f)),
             };
             AddVisual(go, radius * 2.4f, radius * 2.4f, tint, sprite);
+
+            _targetObjects.Add(go);
         }
 
         /// <summary>

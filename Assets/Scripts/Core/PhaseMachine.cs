@@ -221,7 +221,7 @@ namespace LinkShot.Core
                 throw new InvalidOperationException("このショットの試行はすべて終了しています");
             }
 
-            int baseScore = Scoring.BaseScore(action.Outcome, action.Zone);
+            int baseScore = Scoring.BaseScore(action.HitZones);
             state.ShotAttemptScores.Add(baseScore);
             state.ShotAttemptOutcomes.Add(action.Outcome);
             state.ShotAttemptsRemaining -= 1;

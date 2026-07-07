@@ -51,19 +51,23 @@ namespace LinkShot.Core
         MatchEnd,
     }
 
-    /// <summary>的（ターゲットゾーン）の識別子（GAME_RULES.md 5.1章）。BonusはGAME_RULES.md未記載の追加的（得点は控えめ）。</summary>
+    /// <summary>
+    /// 的（ターゲットゾーン）の得点階層（GAME_RULES.md 5.1章）。的は貫通するため位置に意味はなく、
+    /// ショットごとにランダム配置される点数階層だけを識別する。
+    /// </summary>
     public enum TargetZoneId
     {
-        TopLeftCorner,
-        TopRightCorner,
-        Center,
-        Bonus,
+        Score500,
+        Score300,
+        Score100,
     }
 
-    /// <summary>1ショットの最終的な着弾結果の種別（GAME_RULES.md 5.2章）。</summary>
+    /// <summary>
+    /// 1ショットの最終的な着弾結果の種別（GAME_RULES.md 5.2章）。
+    /// 的は貫通してボールを止めないため、ここには含まれない（命中した的はSubmitShotResultActionのHitZonesで別途渡す）。
+    /// </summary>
     public enum ShotOutcomeKind
     {
-        TargetHit,
         WallHit,
         OutOfField,
         Timeout,

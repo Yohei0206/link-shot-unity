@@ -68,16 +68,19 @@ namespace LinkShot.Core
         }
     }
 
-    /// <summary>(5)(10) ショットフェーズ: Game/層から物理判定結果を1回分report する。</summary>
+    /// <summary>
+    /// (5)(10) ショットフェーズ: Game/層から物理判定結果を1回分report する。
+    /// 的は貫通するため、着弾までにボールが通過した的をHitZonesに複数含められる（0個も可）。
+    /// </summary>
     public sealed class SubmitShotResultAction : GameAction
     {
         public readonly ShotOutcomeKind Outcome;
-        public readonly TargetZoneId? Zone;
+        public readonly System.Collections.Generic.IReadOnlyList<TargetZoneId> HitZones;
 
-        public SubmitShotResultAction(ShotOutcomeKind outcome, TargetZoneId? zone = null)
+        public SubmitShotResultAction(ShotOutcomeKind outcome, System.Collections.Generic.IReadOnlyList<TargetZoneId> hitZones = null)
         {
             Outcome = outcome;
-            Zone = zone;
+            HitZones = hitZones ?? System.Array.Empty<TargetZoneId>();
         }
     }
 

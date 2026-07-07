@@ -1,25 +1,33 @@
+using System.Collections.Generic;
+
 namespace LinkShot.Core
 {
     /// <summary>得点計算（GAME_RULES.md 5章）。</summary>
     public static class Scoring
     {
         /// <summary>
-        /// 着弾結果からカード効果適用前の基礎点を求める。
-        /// 壁命中・枠外・時間切れは常に0点（GAME_RULES.md 5.2, 5.3章）。
+        /// カード効果適用前の基礎点を求める。的は貫通式で1ショットに複数命中しうるため、
+        /// 着弾までに通過した全ての的の得点を合算する（壁命中・枠外・時間切れそのものは加点しない。
+        /// ただし途中で通過した的の得点は失われない）。
         /// </summary>
-        public static int BaseScore(ShotOutcomeKind outcome, TargetZoneId? zone)
+        public static int BaseScore(IReadOnlyList<TargetZoneId> hitZones)
         {
-            if (outcome != ShotOutcomeKind.TargetHit)
+            int total = 0;
+            foreach (TargetZoneId zone in hitZones)
             {
-                return 0;
+                total += ZoneScore(zone);
             }
 
+            return total;
+        }
+
+        private static int ZoneScore(TargetZoneId zone)
+        {
             return zone switch
             {
-                TargetZoneId.TopLeftCorner => GameConfig.CornerZoneScore,
-                TargetZoneId.TopRightCorner => GameConfig.CornerZoneScore,
-                TargetZoneId.Center => GameConfig.CenterZoneScore,
-                TargetZoneId.Bonus => GameConfig.BonusZoneScore,
+                TargetZoneId.Score500 => GameConfig.Score500Value,
+                TargetZoneId.Score300 => GameConfig.Score300Value,
+                TargetZoneId.Score100 => GameConfig.Score100Value,
                 _ => 0,
             };
         }

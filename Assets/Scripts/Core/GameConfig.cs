@@ -29,13 +29,16 @@ namespace LinkShot.Core
         public const float RangeBoostRadiusMultiplier = 1.5f; // 【暫定】
 
         // --- 得点システム (GAME_RULES.md 5章) ---
-        public const int CornerZoneScore = 500;
-        public const int CenterZoneScore = 200;
-        public const int BonusZoneScore = 100; // 追加した10個の的（見た目のにぎやかしを兼ねる）
-        public const float CornerZoneRadiusRatio = 0.05f; // フィールド幅比
-        public const float CenterZoneRadiusRatio = 0.08f; // フィールド幅比
-        public const float BonusZoneRadiusRatio = 0.03f; // フィールド幅比
-        public const int BonusZoneCount = 10;
+        // 的は貫通式（複数枚を1ショットで取得できる）。ショットごとにランダム配置する【暫定】。
+        public const int Score500Value = 500;
+        public const int Score300Value = 300;
+        public const int Score100Value = 100;
+        public const int Score500Count = 1;
+        public const int Score300Count = 3;
+        public const int Score100Count = 12;
+        public const float Score500RadiusRatio = 0.07f; // フィールド幅比。最高得点は1個だけの目玉として最大サイズにする
+        public const float Score300RadiusRatio = 0.05f; // フィールド幅比
+        public const float Score100RadiusRatio = 0.03f; // フィールド幅比。最多数のぶん最小サイズにする
 
         // --- フィールドレイアウト (GAME_RULES.md 7章) ---
         public const int WallGridColumns = 12; // 壁配置エリアの拡張(FieldView.WallBandWidth)に合わせ、置ける位置を増やす【暫定】

@@ -36,7 +36,7 @@ namespace LinkShot.Core.Tests
                     PhaseMachine.Dispatch(state, new ResolveEffectAction(default));
 
                     Assert.AreEqual(Phase.Shot, state.Phase);
-                    PhaseMachine.Dispatch(state, new SubmitShotResultAction(ShotOutcomeKind.TargetHit, TargetZoneId.Center));
+                    PhaseMachine.Dispatch(state, new SubmitShotResultAction(ShotOutcomeKind.WallHit, new[] { TargetZoneId.Score300 }));
 
                     Assert.AreEqual(Phase.ScoreResolve, state.Phase);
                     PhaseMachine.Dispatch(state, new ProceedAction());
@@ -48,8 +48,8 @@ namespace LinkShot.Core.Tests
             Assert.AreEqual(0, state.Players[0].Hand.Count);
             Assert.AreEqual(0, state.Players[1].Hand.Count);
             // 各プレイヤーは1ラウンドにつき1回だけ攻撃する（先攻/後攻いずれか）ため、獲得点はRoundCount回分。
-            Assert.AreEqual(GameConfig.CenterZoneScore * GameConfig.RoundCount, state.Players[0].Score);
-            Assert.AreEqual(GameConfig.CenterZoneScore * GameConfig.RoundCount, state.Players[1].Score);
+            Assert.AreEqual(GameConfig.Score300Value * GameConfig.RoundCount, state.Players[0].Score);
+            Assert.AreEqual(GameConfig.Score300Value * GameConfig.RoundCount, state.Players[1].Score);
         }
 
         [Test]
@@ -87,7 +87,7 @@ namespace LinkShot.Core.Tests
         {
             var state = TestHelpers.NewState("RANGE_BOOST_GAMMA", "MINI_BALL_GAMMA");
             Assert.Throws<InvalidOperationException>(() =>
-                PhaseMachine.Dispatch(state, new SubmitShotResultAction(ShotOutcomeKind.TargetHit, TargetZoneId.Center)));
+                PhaseMachine.Dispatch(state, new SubmitShotResultAction(ShotOutcomeKind.WallHit)));
         }
 
         [Test]
@@ -176,15 +176,15 @@ namespace LinkShot.Core.Tests
 
             Assert.AreEqual(2, state.ShotAttemptsRemaining);
 
-            PhaseMachine.Dispatch(state, new SubmitShotResultAction(ShotOutcomeKind.TargetHit, TargetZoneId.Center));
+            PhaseMachine.Dispatch(state, new SubmitShotResultAction(ShotOutcomeKind.WallHit, new[] { TargetZoneId.Score300 }));
             Assert.AreEqual(Phase.Shot, state.Phase); // まだ2投目待ち
             Assert.AreEqual(1, state.ShotAttemptsRemaining);
 
-            PhaseMachine.Dispatch(state, new SubmitShotResultAction(ShotOutcomeKind.TargetHit, TargetZoneId.TopLeftCorner));
+            PhaseMachine.Dispatch(state, new SubmitShotResultAction(ShotOutcomeKind.OutOfField, new[] { TargetZoneId.Score500 }));
             Assert.AreEqual(Phase.ScoreResolve, state.Phase);
             Assert.AreEqual(1, state.History.Count);
-            Assert.AreEqual(GameConfig.CornerZoneScore, state.History[0].Score);
-            Assert.AreEqual(GameConfig.CornerZoneScore, state.Players[0].Score);
+            Assert.AreEqual(GameConfig.Score500Value, state.History[0].Score);
+            Assert.AreEqual(GameConfig.Score500Value, state.Players[0].Score);
         }
     }
 }

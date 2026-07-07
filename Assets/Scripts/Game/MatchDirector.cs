@@ -207,6 +207,8 @@ namespace LinkShot.Game
             int defender = _state.CurrentDefender;
             bool confirmed = false;
 
+            // 的は貫通式でショットごとにランダム配置し直す（先攻/後攻それぞれ、GAME_RULES.md 5.1章）。
+            _fieldView.RebuildTargets();
             _fieldView.HighlightLaunchPosition(null);
 
             _wallPlacementPanel.Show(defender, _state.Players[defender].DisposableWallCardsRemaining, (defaultCell, disposableCells) =>
@@ -264,11 +266,11 @@ namespace LinkShot.Game
 
             bool resolved = false;
             ShotOutcomeKind outcome = default;
-            TargetZoneId? zone = null;
-            Action<ShotOutcomeKind, TargetZoneId?> onResolved = (o, z) =>
+            IReadOnlyList<TargetZoneId> hitZones = Array.Empty<TargetZoneId>();
+            Action<ShotOutcomeKind, IReadOnlyList<TargetZoneId>> onResolved = (o, zones) =>
             {
                 outcome = o;
-                zone = z;
+                hitZones = zones;
                 resolved = true;
             };
 
@@ -307,8 +309,8 @@ namespace LinkShot.Game
             _slingshotInput.Launched -= onLaunched;
             _ballObject.SetActive(false);
 
-            Debug.Log($"[Round {_state.Round} Shot {_state.ShotIndex}] 着弾結果: {outcome} zone={zone}");
-            PhaseMachine.Dispatch(_state, new SubmitShotResultAction(outcome, zone));
+            Debug.Log($"[Round {_state.Round} Shot {_state.ShotIndex}] 着弾結果: {outcome} 命中した的={hitZones.Count}個");
+            PhaseMachine.Dispatch(_state, new SubmitShotResultAction(outcome, hitZones));
         }
 
         private IEnumerator RunScoreResolvePhase()
