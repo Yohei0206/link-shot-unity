@@ -89,17 +89,13 @@ namespace LinkShot.Game
             // 壁配置エリア（ダート、WallBandWidth）が的帯より広いため、木・茂み・岩はその外側（芝の上）に置く。
             float marginX = WallBandWidth / 2f + 0.3f;
 
-            CreateDecoration("tile_0027", new Vector2(-marginX - 0.2f, 3.4f), 1.6f);
-            CreateDecoration("tile_0015", new Vector2(-marginX + 0.5f, 1.9f), 1.2f);
-            CreateDecoration("tile_0078", new Vector2(-marginX - 0.1f, 0.3f), 0.7f);
-            CreateDecoration("tile_0089", new Vector2(-marginX + 0.4f, -1.2f), 0.6f);
-            CreateDecoration("tile_0015", new Vector2(-marginX - 0.2f, -2.9f), 0.8f);
+            CreateDecoration("tile_0078", new Vector2(-marginX - 0.1f, 2.6f), 0.7f);
+            CreateDecoration("tile_0089", new Vector2(-marginX + 0.4f, 0.3f), 0.6f);
+            CreateDecoration("tile_0078", new Vector2(-marginX - 0.2f, -1.8f), 0.7f);
 
-            CreateDecoration("tile_0027", new Vector2(marginX + 0.2f, 3.4f), 1.6f);
-            CreateDecoration("tile_0015", new Vector2(marginX - 0.5f, 1.9f), 1.2f);
-            CreateDecoration("tile_0083", new Vector2(marginX + 0.1f, 0.3f), 0.7f);
-            CreateDecoration("tile_0089", new Vector2(marginX - 0.4f, -1.2f), 0.6f);
-            CreateDecoration("tile_0015", new Vector2(marginX + 0.2f, -2.9f), 0.8f);
+            CreateDecoration("tile_0083", new Vector2(marginX + 0.1f, 2.6f), 0.7f);
+            CreateDecoration("tile_0089", new Vector2(marginX - 0.4f, 0.3f), 0.6f);
+            CreateDecoration("tile_0083", new Vector2(marginX + 0.2f, -1.8f), 0.7f);
         }
 
         private void CreateDecoration(string tileName, Vector2 position, float size)

@@ -1,10 +1,10 @@
 fileFormatVersion: 2
-guid: 8d06117adc8797f49bf568dd1c826bf8
+guid: 165f63f94d1260947b0ae893cc95a624
 TextureImporter:
   internalIDToNameTable:
   - first:
-      213: -5491632663426174961
-    second: tile_0015_0
+      213: 1126027057948446225
+    second: icon_element_leaf_0
   externalObjects: {}
   serializedVersion: 13
   mipmaps:
@@ -37,7 +37,7 @@ TextureImporter:
   maxTextureSize: 2048
   textureSettings:
     serializedVersion: 2
-    filterMode: 0
+    filterMode: 1
     aniso: 1
     mipBias: 0
     wrapU: 1
@@ -48,10 +48,10 @@ TextureImporter:
   compressionQuality: 50
   spriteMode: 1
   spriteExtrude: 1
-  spriteMeshType: 0
+  spriteMeshType: 1
   alignment: 0
   spritePivot: {x: 0.5, y: 0.5}
-  spritePixelsToUnits: 16
+  spritePixelsToUnits: 100
   spriteBorder: {x: 0, y: 0, z: 0, w: 0}
   spriteGenerateFallbackPhysicsShape: 1
   alphaUsage: 1
@@ -75,7 +75,7 @@ TextureImporter:
     maxTextureSize: 2048
     resizeAlgorithm: 0
     textureFormat: -1
-    textureCompression: 0
+    textureCompression: 1
     compressionQuality: 50
     crunchedCompression: 0
     allowsAlphaSplitting: 0
@@ -100,13 +100,13 @@ TextureImporter:
     serializedVersion: 2
     sprites:
     - serializedVersion: 2
-      name: tile_0015_0
+      name: icon_element_leaf_0
       rect:
         serializedVersion: 2
-        x: 0
-        y: 1
-        width: 16
-        height: 15
+        x: 19
+        y: 0
+        width: 90
+        height: 123
       alignment: 0
       pivot: {x: 0, y: 0}
       border: {x: 0, y: 0, z: 0, w: 0}
@@ -115,8 +115,8 @@ TextureImporter:
       physicsShape: []
       tessellationDetail: -1
       bones: []
-      spriteID: f00fc83403dc9c3b0800000000000000
-      internalID: -5491632663426174961
+      spriteID: 11ece7ca4a370af00800000000000000
+      internalID: 1126027057948446225
       vertices: []
       indices: 
       edges: []
@@ -135,7 +135,7 @@ TextureImporter:
     spriteCustomMetadata:
       entries: []
     nameFileIdTable:
-      tile_0015_0: -5491632663426174961
+      icon_element_leaf_0: 1126027057948446225
   mipmapLimitGroupName: 
   pSDRemoveMatte: 0
   userData: 
