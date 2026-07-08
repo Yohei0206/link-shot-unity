@@ -11,6 +11,8 @@ namespace LinkShot.UI
     public class HudPanel : MonoBehaviour
     {
         private Text _statusText;
+        private Text _scoreboardText;
+        private Text _cardInfoText;
         private GameObject _resultOverlay;
         private Text _resultText;
         private Action _onContinue;
@@ -19,6 +21,12 @@ namespace LinkShot.UI
         {
             _statusText = UITheme.CreateText(transform, "Status", string.Empty, 26, Color.white, TextAnchor.UpperCenter);
             UITheme.SetRect(_statusText.rectTransform, new Vector2(0, 515), new Vector2(1600, 60));
+
+            _scoreboardText = UITheme.CreateText(transform, "Scoreboard", string.Empty, 26, Color.white, TextAnchor.UpperLeft);
+            UITheme.SetRect(_scoreboardText.rectTransform, new Vector2(-760, 300), new Vector2(320, 200));
+
+            _cardInfoText = UITheme.CreateText(transform, "CardInfo", string.Empty, 24, Color.white, TextAnchor.UpperLeft);
+            UITheme.SetRect(_cardInfoText.rectTransform, new Vector2(-760, 80), new Vector2(320, 220));
 
             var overlayGo = new GameObject("ResultOverlay", typeof(RectTransform));
             overlayGo.transform.SetParent(transform, false);
@@ -37,9 +45,30 @@ namespace LinkShot.UI
             _resultOverlay.SetActive(false);
         }
 
-        public void UpdateStatus(int round, int roundCount, int score0, int score1, string phaseLabel)
+        public void UpdateStatus(string phaseLabel)
         {
-            _statusText.text = $"ラウンド {round}/{roundCount}   P1:{score0}  -  P2:{score1}\n{phaseLabel}";
+            _statusText.text = phaseLabel;
+        }
+
+        /// <summary>画面横のスコアボード（ラウンド・両者の得点）を更新する。</summary>
+        public void UpdateScoreboard(int round, int roundCount, int score0, int score1)
+        {
+            _scoreboardText.text = $"ラウンド {round}/{roundCount}\n\nP1: {score0}\nP2: {score1}";
+        }
+
+        /// <summary>
+        /// 画面横のカード情報ボードを更新する。両者のカードが未確定の間はeffectNameにnullを渡して非表示にする。
+        /// </summary>
+        public void UpdateCardInfo(string effectName, bool? activated)
+        {
+            if (effectName == null)
+            {
+                _cardInfoText.text = string.Empty;
+                return;
+            }
+
+            string statusLabel = activated == true ? "有効" : "無効";
+            _cardInfoText.text = $"発動カード\n{effectName}\n({statusLabel})";
         }
 
         public void ShowResult(string message, Action onContinue)

@@ -17,7 +17,9 @@ namespace LinkShot.Game
         public const float WideBandWidth = 9f;
 
         // 壁配置エリアは的帯よりさらに広く、画面端（16:9基準）まで届かせる。
-        public const float WallBandWidth = FieldHeight * 16f / 9f;
+        // 【暫定】列数削減(12→8列)に合わせて、ボールの実射程外だった両端2列ぶんを幅からも除外し、
+        // 残り8列のセル幅は変えずに帯全体を縮める（旧幅の8/12倍）。
+        public const float WallBandWidth = FieldHeight * 16f / 9f * (8f / 12f);
 
         // 壁1枚の見た目サイズ（壁グリッド1セルに対する比率）。UI/WallPlacementPanelのプレビューもこれを参照し、
         // 隣接セルに置いたときに隙間ができる見た目に合わせる。

@@ -41,7 +41,9 @@ namespace LinkShot.Core
         public const float Score100RadiusRatio = 0.03f; // フィールド幅比。最多数のぶん最小サイズにする
 
         // --- フィールドレイアウト (GAME_RULES.md 7章) ---
-        public const int WallGridColumns = 12; // 壁配置エリアの拡張(FieldView.WallBandWidth)に合わせ、置ける位置を増やす【暫定】
+        // 【暫定】WallBandWidthの両端2列ずつ(計4列)はボールの実射程外で実質意味がないため、
+        // プレイテストで削除(12→8列)。
+        public const int WallGridColumns = 8;
         public const int WallGridRows = 2;
         public const int WallGridCellCount = WallGridColumns * WallGridRows;
 

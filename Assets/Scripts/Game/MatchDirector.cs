@@ -580,7 +580,17 @@ namespace LinkShot.Game
                 _ => string.Empty,
             };
 
-            _hudPanel.UpdateStatus(_state.Round, GameConfig.RoundCount, _state.Players[0].Score, _state.Players[1].Score, phaseLabel);
+            _hudPanel.UpdateStatus(phaseLabel);
+            _hudPanel.UpdateScoreboard(_state.Round, GameConfig.RoundCount, _state.Players[0].Score, _state.Players[1].Score);
+
+            if (_state.BothCardsSet)
+            {
+                _hudPanel.UpdateCardInfo(CardVisuals.EffectJapanese(_state.AttackerCard.Effect), _state.CurrentShotEffectActivated);
+            }
+            else
+            {
+                _hudPanel.UpdateCardInfo(null, null);
+            }
         }
 
     }
