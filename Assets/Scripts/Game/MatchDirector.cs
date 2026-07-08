@@ -29,6 +29,7 @@ namespace LinkShot.Game
         private SlingshotInput _slingshotInput;
 
         private HandoverScreen _handoverScreen;
+        private TitlePanel _titlePanel;
         private ModeSelectPanel _modeSelectPanel;
         private DeckSelectPanel _deckSelectPanel;
         private CardSelectPanel _cardSelectPanel;
@@ -60,20 +61,31 @@ namespace LinkShot.Game
             StartCoroutine(RunGameLoop());
         }
 
-        /// <summary>デッキ選択→対戦→リザルトを1試合ぶん行い、「もう一度遊ぶ」で最初から繰り返す。</summary>
+        /// <summary>
+        /// タイトル→モード選択→デッキ選択→対戦→リザルトを1試合ぶん行い、
+        /// リザルトの「もう一度遊ぶ」でタイトルから繰り返す。
+        /// </summary>
         private IEnumerator RunGameLoop()
         {
-            yield return RunModeSelect();
-
             while (true)
             {
+                yield return RunTitleScreen();
+                yield return RunModeSelect();
                 yield return RunPreMatch();
                 yield return RunMatch();
                 yield return RunResultPhase();
             }
         }
 
-        /// <summary>対戦モード選択(ROADMAP.md Phase 2)。ゲームループの最初に一度だけ表示する。</summary>
+        /// <summary>タイトル画面。タップでモード選択へ進む。</summary>
+        private IEnumerator RunTitleScreen()
+        {
+            bool started = false;
+            _titlePanel.Show(() => started = true);
+            yield return new WaitUntil(() => started);
+        }
+
+        /// <summary>対戦モード選択(ROADMAP.md Phase 2)。</summary>
         private IEnumerator RunModeSelect()
         {
             bool chosen = false;
@@ -197,6 +209,10 @@ namespace LinkShot.Game
 
             Canvas canvas = UITheme.CreateCanvas("UICanvas", transform, 10);
 
+            // HudPanelは常時表示の背面レイヤーなので、他の全画面ダイアログより先に生成し、
+            // 兄弟順で一番手前に来ないようにする(そうしないとHudPanelのカードボードが他のダイアログの上に透けて見えてしまう)。
+            _hudPanel = CreateFullScreenPanel<HudPanel>(canvas.transform, "HudPanel");
+
             _handoverScreen = CreateFullScreenPanel<HandoverScreen>(canvas.transform, "HandoverScreen");
             _modeSelectPanel = CreateFullScreenPanel<ModeSelectPanel>(canvas.transform, "ModeSelectPanel");
             _deckSelectPanel = CreateFullScreenPanel<DeckSelectPanel>(canvas.transform, "DeckSelectPanel");
@@ -206,8 +222,8 @@ namespace LinkShot.Game
             _positionRollPanel = CreateFullScreenPanel<PositionRollPanel>(canvas.transform, "PositionRollPanel");
             _effectChoicePanel = CreateFullScreenPanel<EffectChoicePanel>(canvas.transform, "EffectChoicePanel");
             _effectChoicePanel.Configure(_fieldView, Camera.main);
-            _hudPanel = CreateFullScreenPanel<HudPanel>(canvas.transform, "HudPanel");
             _resultPanel = CreateFullScreenPanel<ResultPanel>(canvas.transform, "ResultPanel");
+            _titlePanel = CreateFullScreenPanel<TitlePanel>(canvas.transform, "TitlePanel");
         }
 
         private static T CreateFullScreenPanel<T>(Transform parent, string name) where T : Component
