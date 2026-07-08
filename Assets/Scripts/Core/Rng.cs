@@ -24,5 +24,26 @@ namespace LinkShot.Core
         {
             return _random.Next(1, GameConfig.LaunchPositionCount + 1);
         }
+
+        /// <summary>min以上max未満の一様整数乱数（AI/の意思決定用）。</summary>
+        public int NextInt(int minInclusive, int maxExclusive)
+        {
+            return _random.Next(minInclusive, maxExclusive);
+        }
+
+        /// <summary>0.0以上1.0未満の一様乱数。</summary>
+        public double NextFloat01()
+        {
+            return _random.NextDouble();
+        }
+
+        /// <summary>Box-Muller法による正規分布乱数（CPUのショット精度ノイズ等に使用）。</summary>
+        public double NextGaussian(double mean, double stdDev)
+        {
+            double u1 = 1.0 - _random.NextDouble();
+            double u2 = _random.NextDouble();
+            double standardNormal = Math.Sqrt(-2.0 * Math.Log(u1)) * Math.Sin(2.0 * Math.PI * u2);
+            return mean + stdDev * standardNormal;
+        }
     }
 }

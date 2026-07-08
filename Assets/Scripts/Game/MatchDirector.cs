@@ -1,6 +1,7 @@
 using System;
 using System.Collections;
 using System.Collections.Generic;
+using LinkShot.AI;
 using LinkShot.Core;
 using LinkShot.Core.Effects;
 using LinkShot.UI;
@@ -28,6 +29,7 @@ namespace LinkShot.Game
         private SlingshotInput _slingshotInput;
 
         private HandoverScreen _handoverScreen;
+        private ModeSelectPanel _modeSelectPanel;
         private DeckSelectPanel _deckSelectPanel;
         private CardSelectPanel _cardSelectPanel;
         private WallPlacementPanel _wallPlacementPanel;
@@ -35,6 +37,13 @@ namespace LinkShot.Game
         private EffectChoicePanel _effectChoicePanel;
         private HudPanel _hudPanel;
         private ResultPanel _resultPanel;
+
+        // --- Phase 2: CPU対戦 ---
+        private int? _cpuPlayerIndex; // null = 2人対戦。0/1ならそのプレイヤー枠がCPU。
+        private CpuDifficulty _cpuDifficulty;
+        private readonly Rng _cpuRng = new Rng();
+
+        private bool IsCpu(int player) => _cpuPlayerIndex == player;
 
         private void Start()
         {
@@ -54,12 +63,27 @@ namespace LinkShot.Game
         /// <summary>デッキ選択→対戦→リザルトを1試合ぶん行い、「もう一度遊ぶ」で最初から繰り返す。</summary>
         private IEnumerator RunGameLoop()
         {
+            yield return RunModeSelect();
+
             while (true)
             {
                 yield return RunPreMatch();
                 yield return RunMatch();
                 yield return RunResultPhase();
             }
+        }
+
+        /// <summary>対戦モード選択(ROADMAP.md Phase 2)。ゲームループの最初に一度だけ表示する。</summary>
+        private IEnumerator RunModeSelect()
+        {
+            bool chosen = false;
+            _modeSelectPanel.Show((cpuPlayerIndex, difficulty) =>
+            {
+                _cpuPlayerIndex = cpuPlayerIndex;
+                _cpuDifficulty = difficulty;
+                chosen = true;
+            });
+            yield return new WaitUntil(() => chosen);
         }
 
         /// <summary>対戦開始前に、両プレイヤーがデッキ（15種から{GameConfig.DeckSize}枚）を選ぶ。</summary>
@@ -70,6 +94,13 @@ namespace LinkShot.Game
             for (int player = 0; player < 2; player++)
             {
                 int currentPlayer = player;
+
+                if (IsCpu(currentPlayer))
+                {
+                    yield return new WaitForSeconds(GameConfig.CpuThinkDelaySeconds);
+                    decks[currentPlayer] = CpuDeckBuilder.BuildDeck(_cpuRng);
+                    continue;
+                }
 
                 bool handoverDone = false;
                 _handoverScreen.Show($"プレイヤー{currentPlayer + 1}に交代してください\nタップしてデッキを選んでください", () => handoverDone = true);
@@ -167,6 +198,7 @@ namespace LinkShot.Game
             Canvas canvas = UITheme.CreateCanvas("UICanvas", transform, 10);
 
             _handoverScreen = CreateFullScreenPanel<HandoverScreen>(canvas.transform, "HandoverScreen");
+            _modeSelectPanel = CreateFullScreenPanel<ModeSelectPanel>(canvas.transform, "ModeSelectPanel");
             _deckSelectPanel = CreateFullScreenPanel<DeckSelectPanel>(canvas.transform, "DeckSelectPanel");
             _cardSelectPanel = CreateFullScreenPanel<CardSelectPanel>(canvas.transform, "CardSelectPanel");
             _wallPlacementPanel = CreateFullScreenPanel<WallPlacementPanel>(canvas.transform, "WallPlacementPanel");
@@ -226,6 +258,15 @@ namespace LinkShot.Game
             {
                 int currentPlayer = player;
 
+                if (IsCpu(currentPlayer))
+                {
+                    yield return new WaitForSeconds(GameConfig.CpuThinkDelaySeconds);
+                    int opponent = 1 - currentPlayer;
+                    string cardId = CpuCardSelector.ChooseCard(_state.Players[currentPlayer], _state.Players[opponent], _cpuDifficulty, _cpuRng);
+                    PhaseMachine.Dispatch(_state, new SetCardAction(currentPlayer, cardId));
+                    continue;
+                }
+
                 bool handoverDone = false;
                 _handoverScreen.Show($"プレイヤー{currentPlayer + 1}に交代してください\nタップしてカードを選んでください", () => handoverDone = true);
                 yield return new WaitUntil(() => handoverDone);
@@ -248,12 +289,21 @@ namespace LinkShot.Game
         private IEnumerator RunWallPlacementPhase()
         {
             int defender = _state.CurrentDefender;
-            bool confirmed = false;
 
             // 的は貫通式でショットごとにランダム配置し直す（先攻/後攻それぞれ、GAME_RULES.md 5.1章）。
             _fieldView.RebuildTargets();
             _fieldView.HighlightLaunchPosition(null);
 
+            if (IsCpu(defender))
+            {
+                yield return new WaitForSeconds(GameConfig.CpuThinkDelaySeconds);
+                (int defaultCell, List<int> disposableCells) = CpuWallPlanner.PlanWalls(_state, defender, _cpuDifficulty, _cpuRng);
+                PhaseMachine.Dispatch(_state, new PlaceWallsAction(defaultCell, disposableCells));
+                _fieldView.ApplyWalls(_state.Field.DefenderWalls);
+                yield break;
+            }
+
+            bool confirmed = false;
             _wallPlacementPanel.Show(defender, _state.Players[defender].DisposableWallCardsRemaining, (defaultCell, disposableCells) =>
             {
                 PhaseMachine.Dispatch(_state, new PlaceWallsAction(defaultCell, disposableCells));
@@ -271,16 +321,26 @@ namespace LinkShot.Game
         private IEnumerator RunPositionRollPhase()
         {
             ICardEffect effect = _state.CurrentShotEffectActivated ? EffectRegistry.Get(_state.AttackerCard.Effect) : null;
+            bool attackerIsCpu = IsCpu(_state.CurrentAttacker);
 
             if (effect != null && effect.ReplacesPositionRoll)
             {
-                bool chosen = false;
-                _positionRollPanel.ShowPositionChoice(position =>
+                if (attackerIsCpu)
                 {
+                    yield return new WaitForSeconds(GameConfig.CpuThinkDelaySeconds);
+                    int position = CpuPositionChooser.ChoosePosition(_cpuDifficulty, _cpuRng);
                     PhaseMachine.Dispatch(_state, new ChoosePositionAction(position));
-                    chosen = true;
-                });
-                yield return new WaitUntil(() => chosen);
+                }
+                else
+                {
+                    bool chosen = false;
+                    _positionRollPanel.ShowPositionChoice(position =>
+                    {
+                        PhaseMachine.Dispatch(_state, new ChoosePositionAction(position));
+                        chosen = true;
+                    });
+                    yield return new WaitUntil(() => chosen);
+                }
             }
             else
             {
@@ -289,14 +349,25 @@ namespace LinkShot.Game
                 if (_state.RerollAvailable)
                 {
                     int rolled = _state.PendingDiceRoll.Value;
-                    bool decided = false;
-                    _positionRollPanel.ShowReroll(rolled, wantsReroll =>
+
+                    if (attackerIsCpu)
                     {
+                        yield return new WaitForSeconds(GameConfig.CpuThinkDelaySeconds);
+                        bool wantsReroll = CpuPositionChooser.ChooseReroll(rolled, _cpuDifficulty, _cpuRng);
                         GameAction action = wantsReroll ? new RerollAction() : (GameAction)new ConfirmPositionAction();
                         PhaseMachine.Dispatch(_state, action);
-                        decided = true;
-                    });
-                    yield return new WaitUntil(() => decided);
+                    }
+                    else
+                    {
+                        bool decided = false;
+                        _positionRollPanel.ShowReroll(rolled, wantsReroll =>
+                        {
+                            GameAction action = wantsReroll ? new RerollAction() : (GameAction)new ConfirmPositionAction();
+                            PhaseMachine.Dispatch(_state, action);
+                            decided = true;
+                        });
+                        yield return new WaitUntil(() => decided);
+                    }
                 }
             }
 
@@ -317,45 +388,53 @@ namespace LinkShot.Game
                 EffectId effectId = _state.AttackerCard.Effect;
                 Debug.Log($"[Round {_state.Round} Shot {_state.ShotIndex}] 攻撃効果発動: {effectId}");
 
-                bool resolved = false;
-
-                switch (effectId)
+                if (IsCpu(_state.CurrentAttacker) && NeedsEffectTarget(effectId))
                 {
-                    case EffectId.WallRemove when _state.Field.DefenderWalls.Count > 0:
-                        _effectChoicePanel.ShowWallRemove(_state.Field.DefenderWalls, cell =>
-                        {
-                            choice = new EffectChoice { WallTargetCellIndex = cell };
-                            resolved = true;
-                        });
-                        yield return new WaitUntil(() => resolved);
-                        break;
+                    yield return new WaitForSeconds(GameConfig.CpuThinkDelaySeconds);
+                    choice = CpuEffectChoiceSelector.Choose(_state, effectId, _cpuRng);
+                }
+                else
+                {
+                    bool resolved = false;
 
-                    case EffectId.WallShift when _state.Field.DefenderWalls.Count > 0:
-                        _effectChoicePanel.ShowWallShift(_state.Field.DefenderWalls, (fromCell, toCell) =>
-                        {
-                            choice = new EffectChoice { WallTargetCellIndex = fromCell, WallDestinationCellIndex = toCell };
-                            resolved = true;
-                        });
-                        yield return new WaitUntil(() => resolved);
-                        break;
+                    switch (effectId)
+                    {
+                        case EffectId.WallRemove when _state.Field.DefenderWalls.Count > 0:
+                            _effectChoicePanel.ShowWallRemove(_state.Field.DefenderWalls, cell =>
+                            {
+                                choice = new EffectChoice { WallTargetCellIndex = cell };
+                                resolved = true;
+                            });
+                            yield return new WaitUntil(() => resolved);
+                            break;
 
-                    case EffectId.BounceBoard:
-                        _effectChoicePanel.ShowBounceBoard(position =>
-                        {
-                            choice = new EffectChoice { BouncePosition = position };
-                            resolved = true;
-                        });
-                        yield return new WaitUntil(() => resolved);
-                        break;
+                        case EffectId.WallShift when _state.Field.DefenderWalls.Count > 0:
+                            _effectChoicePanel.ShowWallShift(_state.Field.DefenderWalls, (fromCell, toCell) =>
+                            {
+                                choice = new EffectChoice { WallTargetCellIndex = fromCell, WallDestinationCellIndex = toCell };
+                                resolved = true;
+                            });
+                            yield return new WaitUntil(() => resolved);
+                            break;
 
-                    case EffectId.WideGate:
-                        _effectChoicePanel.ShowWideGate(zone =>
-                        {
-                            choice = new EffectChoice { WideGateZone = zone };
-                            resolved = true;
-                        });
-                        yield return new WaitUntil(() => resolved);
-                        break;
+                        case EffectId.BounceBoard:
+                            _effectChoicePanel.ShowBounceBoard(position =>
+                            {
+                                choice = new EffectChoice { BouncePosition = position };
+                                resolved = true;
+                            });
+                            yield return new WaitUntil(() => resolved);
+                            break;
+
+                        case EffectId.WideGate:
+                            _effectChoicePanel.ShowWideGate(zone =>
+                            {
+                                choice = new EffectChoice { WideGateZone = zone };
+                                resolved = true;
+                            });
+                            yield return new WaitUntil(() => resolved);
+                            break;
+                    }
                 }
             }
 
@@ -363,6 +442,22 @@ namespace LinkShot.Game
             _fieldView.ApplyWalls(_state.Field.DefenderWalls);
             _fieldView.ApplyBounceBoards(_state.Field.BounceBoards);
             _fieldView.ApplyWideGate(_state.Field.WideGateZone);
+        }
+
+        /// <summary>対象選択UI(EffectChoicePanel)が実際に出る効果かどうか。CPU分岐の条件を人間側と揃えるために使う。</summary>
+        private bool NeedsEffectTarget(EffectId effectId)
+        {
+            switch (effectId)
+            {
+                case EffectId.WallRemove:
+                case EffectId.WallShift:
+                    return _state.Field.DefenderWalls.Count > 0;
+                case EffectId.BounceBoard:
+                case EffectId.WideGate:
+                    return true;
+                default:
+                    return false;
+            }
         }
 
         private IEnumerator RunShotPhase()
@@ -389,6 +484,17 @@ namespace LinkShot.Game
             _ballObject.SetActive(true);
             _ballController.Rearm();
             _slingshotInput.BeginAt(origin);
+
+            bool attackerIsCpu = IsCpu(_state.CurrentAttacker);
+            _slingshotInput.InputEnabled = !attackerIsCpu;
+
+            if (attackerIsCpu)
+            {
+                yield return new WaitForSeconds(GameConfig.CpuThinkDelaySeconds);
+                (float angleOffset, float power) = CpuShotAimPlanner.GetAim(_cpuDifficulty, _cpuRng);
+                Vector2 direction = Quaternion.Euler(0f, 0f, angleOffset * Mathf.Rad2Deg) * Vector2.up;
+                _slingshotInput.LaunchCpuShot(direction, power);
+            }
 
             bool resolved = false;
             ShotOutcomeKind outcome = default;

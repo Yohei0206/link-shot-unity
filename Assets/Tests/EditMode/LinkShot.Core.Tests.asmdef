@@ -3,6 +3,7 @@
     "rootNamespace": "",
     "references": [
         "LinkShot.Core",
+        "LinkShot.AI",
         "UnityEngine.TestRunner",
         "UnityEditor.TestRunner"
     ],

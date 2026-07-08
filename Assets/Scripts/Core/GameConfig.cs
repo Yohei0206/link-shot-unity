@@ -61,5 +61,14 @@ namespace LinkShot.Core
         public const int WallRemoveCount = 1;
         public const int WallShiftDistance = 1; // 隣接マスへの移動
         public const int DoubleShotAttempts = 2;
+
+        // --- CPU対戦 (GAME_RULES.md 9章, Phase 2) ---
+        public const float CpuThinkDelaySeconds = 0.6f; // 【暫定】人間から見て「考えている」体感を出すための最小待機
+        public const float CpuShotAimSigmaWeakRadians = 0.35f; // 【暫定】弱CPUの狙い角度ノイズ(標準偏差)
+        public const float CpuShotAimSigmaStrongRadians = 0.12f; // 【暫定】強CPUの狙い角度ノイズ(標準偏差)
+        public const float CpuShotPowerMean = 0.85f; // 【暫定】CPUの狙いパワーの平均値(0..1)
+        public const float CpuShotPowerSigma = 0.08f; // 【暫定】CPUの狙いパワーのノイズ(標準偏差)
+        public const float CpuStrongCardBiasWeight = 0.6f; // 【暫定】強CPUが有利属性カードを選ぶ確率の重み付け
+        public const float CpuWallSpendBehindThreshold = 0.5f; // 【暫定】この割合以上ラウンドが残っていれば負けていても温存
     }
 }

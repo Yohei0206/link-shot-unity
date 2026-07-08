@@ -18,6 +18,9 @@ namespace LinkShot.Game
         /// <summary>MaxPullDistanceに対する比率。これ未満の引っ張りは誤タップ/ノイズとみなして発射しない。</summary>
         public float MinPullRatio = 0.15f;
 
+        /// <summary>falseの間はドラッグ入力を無視する(CPU番の間、人間の誤操作が横取りしないようにするため)。</summary>
+        public bool InputEnabled = true;
+
         public event Action Launched;
 
         private Rigidbody2D _rigidbody;
@@ -44,7 +47,7 @@ namespace LinkShot.Game
 
         private void Update()
         {
-            if (_launched)
+            if (_launched || !InputEnabled)
             {
                 return;
             }
@@ -108,7 +111,24 @@ namespace LinkShot.Game
             float power = Mathf.Clamp01(pullRatio);
             Vector2 launchDirection = -pull.normalized;
 
-            _rigidbody.linearVelocity = launchDirection * power * MaxLaunchSpeed * VelocityMultiplier;
+            Fire(launchDirection, power);
+        }
+
+        /// <summary>CPUのショット実行用。ドラッグ入力を経由せず、方向とパワー(0..1)を直接指定して発射する。</summary>
+        public void LaunchCpuShot(Vector2 direction, float power)
+        {
+            if (_launched)
+            {
+                return;
+            }
+
+            transform.position = _launchOrigin;
+            Fire(direction.normalized, Mathf.Clamp01(power));
+        }
+
+        private void Fire(Vector2 direction, float power)
+        {
+            _rigidbody.linearVelocity = direction * power * MaxLaunchSpeed * VelocityMultiplier;
             _launched = true;
             Launched?.Invoke();
         }
