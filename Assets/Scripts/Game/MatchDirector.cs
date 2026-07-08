@@ -581,15 +581,16 @@ namespace LinkShot.Game
             };
 
             _hudPanel.UpdateStatus(phaseLabel);
-            _hudPanel.UpdateScoreboard(_state.Round, GameConfig.RoundCount, _state.Players[0].Score, _state.Players[1].Score);
 
-            if (_state.BothCardsSet)
+            bool bothCardsSet = _state.BothCardsSet;
+            int attacker = bothCardsSet ? _state.CurrentAttacker : -1;
+            bool activated = bothCardsSet && _state.CurrentShotEffectActivated;
+
+            for (int player = 0; player < 2; player++)
             {
-                _hudPanel.UpdateCardInfo(CardVisuals.EffectJapanese(_state.AttackerCard.Effect), _state.CurrentShotEffectActivated);
-            }
-            else
-            {
-                _hudPanel.UpdateCardInfo(null, null);
+                string cardId = _state.Players[player].SetCardId;
+                Card card = cardId != null ? CardCatalog.Get(cardId) : null;
+                _hudPanel.UpdatePlayerInfo(player, _state.Players[player].Score, card, player == attacker, activated);
             }
         }
 

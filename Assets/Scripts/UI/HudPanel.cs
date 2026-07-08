@@ -1,32 +1,43 @@
 using System;
+using LinkShot.Core;
 using UnityEngine;
 using UnityEngine.UI;
 
 namespace LinkShot.UI
 {
     /// <summary>
-    /// 常時表示のスコア/ラウンド/フェーズ表示と、得点解決フェーズの結果オーバーレイ（GAME_RULES.md 3章の(6)(11)）。
+    /// 常時表示のフェーズ表示・両プレイヤーのカード情報ボード（左=P1/右=P2）と、
+    /// 得点解決フェーズの結果オーバーレイ（GAME_RULES.md 3章の(6)(11)）。
     /// 詳細な履歴ログ（HistoryLog）はPhase1の後続タスクとして未実装。
     /// </summary>
     public class HudPanel : MonoBehaviour
     {
+        private const string CardPanelSpritePath = "UI/Kenney/FantasyBorders/panel-007";
+        private static readonly Color EmptyColor = new Color(1f, 1f, 1f, 0f);
+
         private Text _statusText;
-        private Text _scoreboardText;
-        private Text _cardInfoText;
+        private PlayerInfoCard _player0Card;
+        private PlayerInfoCard _player1Card;
         private GameObject _resultOverlay;
         private Text _resultText;
         private Action _onContinue;
+
+        private class PlayerInfoCard
+        {
+            public Image Background;
+            public Text ScoreText;
+            public Image ElementIcon;
+            public Text EffectNameText;
+            public Text StatusText;
+        }
 
         private void Awake()
         {
             _statusText = UITheme.CreateText(transform, "Status", string.Empty, 26, Color.white, TextAnchor.UpperCenter);
             UITheme.SetRect(_statusText.rectTransform, new Vector2(0, 515), new Vector2(1600, 60));
 
-            _scoreboardText = UITheme.CreateText(transform, "Scoreboard", string.Empty, 26, Color.white, TextAnchor.UpperLeft);
-            UITheme.SetRect(_scoreboardText.rectTransform, new Vector2(-760, 300), new Vector2(320, 200));
-
-            _cardInfoText = UITheme.CreateText(transform, "CardInfo", string.Empty, 24, Color.white, TextAnchor.UpperLeft);
-            UITheme.SetRect(_cardInfoText.rectTransform, new Vector2(-760, 80), new Vector2(320, 220));
+            _player0Card = BuildPlayerCard("P1Card", new Vector2(-800, 60));
+            _player1Card = BuildPlayerCard("P2Card", new Vector2(800, 60));
 
             var overlayGo = new GameObject("ResultOverlay", typeof(RectTransform));
             overlayGo.transform.SetParent(transform, false);
@@ -45,30 +56,67 @@ namespace LinkShot.UI
             _resultOverlay.SetActive(false);
         }
 
+        /// <summary>
+        /// 自分側(P1)は左、相手側(P2)は右にカードUI風のボードを配置する。
+        /// 属性アイコンをカード名の左に置く横並びレイアウト。
+        /// </summary>
+        private PlayerInfoCard BuildPlayerCard(string name, Vector2 position)
+        {
+            Image background = UITheme.CreateImage(transform, name, Resources.Load<Sprite>(CardPanelSpritePath), Color.white);
+            UITheme.SetRect(background.rectTransform, position, new Vector2(300, 260));
+
+            Text scoreText = UITheme.CreateText(background.transform, "Score", string.Empty, 30, Color.black, TextAnchor.MiddleCenter);
+            UITheme.SetRect(scoreText.rectTransform, new Vector2(0, 90), new Vector2(280, 60));
+
+            Image icon = UITheme.CreateImage(background.transform, "ElementIcon", null, EmptyColor);
+            UITheme.SetRect(icon.rectTransform, new Vector2(-85, 0), new Vector2(64, 64));
+
+            Text effectNameText = UITheme.CreateText(background.transform, "EffectName", string.Empty, 24, Color.black, TextAnchor.MiddleLeft);
+            UITheme.SetRect(effectNameText.rectTransform, new Vector2(45, 0), new Vector2(160, 70));
+
+            Text statusText = UITheme.CreateText(background.transform, "Status", string.Empty, 22, new Color(0.6f, 0.05f, 0.05f), TextAnchor.MiddleCenter);
+            UITheme.SetRect(statusText.rectTransform, new Vector2(0, -90), new Vector2(280, 40));
+
+            return new PlayerInfoCard
+            {
+                Background = background,
+                ScoreText = scoreText,
+                ElementIcon = icon,
+                EffectNameText = effectNameText,
+                StatusText = statusText,
+            };
+        }
+
         public void UpdateStatus(string phaseLabel)
         {
             _statusText.text = phaseLabel;
         }
 
-        /// <summary>画面横のスコアボード（ラウンド・両者の得点）を更新する。</summary>
-        public void UpdateScoreboard(int round, int roundCount, int score0, int score1)
-        {
-            _scoreboardText.text = $"ラウンド {round}/{roundCount}\n\nP1: {score0}\nP2: {score1}";
-        }
-
         /// <summary>
-        /// 画面横のカード情報ボードを更新する。両者のカードが未確定の間はeffectNameにnullを渡して非表示にする。
+        /// P1/P2それぞれのカード情報ボードを更新する。cardがnullの間(カード未確定)はアイコン・効果名を空にする。
+        /// isCurrentAttackerがtrueのときだけ、その効果が発動しているか(有効/無効)を表示する。
         /// </summary>
-        public void UpdateCardInfo(string effectName, bool? activated)
+        public void UpdatePlayerInfo(int player, int score, Card card, bool isCurrentAttacker, bool activated)
         {
-            if (effectName == null)
+            PlayerInfoCard target = player == 0 ? _player0Card : _player1Card;
+            target.ScoreText.text = $"P{player + 1}  {score}";
+
+            if (card == null)
             {
-                _cardInfoText.text = string.Empty;
+                target.Background.color = Color.white;
+                target.ElementIcon.sprite = null;
+                target.ElementIcon.color = EmptyColor;
+                target.EffectNameText.text = string.Empty;
+                target.StatusText.text = string.Empty;
                 return;
             }
 
-            string statusLabel = activated == true ? "有効" : "無効";
-            _cardInfoText.text = $"発動カード\n{effectName}\n({statusLabel})";
+            // アイコン自体は無彩色なので、CardSelectPanelと同じく背景を属性色で塗って見分けやすくする。
+            target.Background.color = CardVisuals.ElementColor(card.Element);
+            target.ElementIcon.sprite = CardVisuals.ElementIcon(card.Element);
+            target.ElementIcon.color = Color.white;
+            target.EffectNameText.text = CardVisuals.EffectJapanese(card.Effect);
+            target.StatusText.text = isCurrentAttacker ? (activated ? "(有効)" : "(無効)") : string.Empty;
         }
 
         public void ShowResult(string message, Action onContinue)
