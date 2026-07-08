@@ -64,19 +64,10 @@ namespace LinkShot.UI
 
         private void BuildGrid()
         {
-            var rectTransform = (RectTransform)transform;
-            Vector2 cellSizeWorld = _fieldView.GetWallCellSize();
-
             for (int i = 0; i < GameConfig.WallGridCellCount; i++)
             {
                 int cellIndex = i;
-                Vector2 centerWorld = _fieldView.GetWallCellCenter(i);
-                Vector2 centerLocal = WorldToCanvasLocal(centerWorld, rectTransform);
-
-                // タップ判定はセル全体を使う（掴みやすさ優先）。見た目はほぼ透明。
-                Vector2 hitSize = ProjectWorldSize(centerWorld, cellSizeWorld * 0.95f, rectTransform);
                 Image hitArea = UITheme.CreateImage(transform, $"CellHit_{i}", null, HitAreaColor);
-                UITheme.SetRect(hitArea.rectTransform, centerLocal, hitSize);
 
                 var button = hitArea.gameObject.AddComponent<Button>();
                 button.targetGraphic = hitArea;
@@ -84,13 +75,37 @@ namespace LinkShot.UI
 
                 // プレビューはFieldViewが実際に生成する壁と同じスプライト・幅・高さを使い、
                 // 選択中の見た目と配置後の見た目が一致するようにする（未選択時は透明）。
-                Vector2 previewSizeWorld = new Vector2(cellSizeWorld.x * FieldView.WallVisualWidthRatio, cellSizeWorld.y * FieldView.WallVisualHeightRatio);
-                Vector2 previewSize = ProjectWorldSize(centerWorld, previewSizeWorld, rectTransform);
                 Image indicator = UITheme.CreateImage(hitArea.transform, "Indicator", FieldView.LoadDefaultWallSprite(), EmptyColor);
-                UITheme.SetRect(indicator.rectTransform, Vector2.zero, previewSize);
 
                 _cellIndicators[i] = indicator;
                 _cellHitAreas[i] = hitArea;
+            }
+
+            LayoutGrid();
+        }
+
+        /// <summary>
+        /// セルの当たり判定・プレビューをワールド座標からキャンバス座標へ再投影する。
+        /// WebGLではキャンバスの実サイズがConfigure時点でまだ確定していないことがあり、
+        /// 一度だけ計算してキャッシュすると表示がズレるため、Showのたびに呼び直す。
+        /// </summary>
+        private void LayoutGrid()
+        {
+            var rectTransform = (RectTransform)transform;
+            Vector2 cellSizeWorld = _fieldView.GetWallCellSize();
+            Vector2 previewSizeWorld = new Vector2(cellSizeWorld.x * FieldView.WallVisualWidthRatio, cellSizeWorld.y * FieldView.WallVisualHeightRatio);
+
+            for (int i = 0; i < GameConfig.WallGridCellCount; i++)
+            {
+                Vector2 centerWorld = _fieldView.GetWallCellCenter(i);
+                Vector2 centerLocal = WorldToCanvasLocal(centerWorld, rectTransform);
+
+                // タップ判定はセル全体を使う（掴みやすさ優先）。見た目はほぼ透明。
+                Vector2 hitSize = ProjectWorldSize(centerWorld, cellSizeWorld * 0.95f, rectTransform);
+                UITheme.SetRect(_cellHitAreas[i].rectTransform, centerLocal, hitSize);
+
+                Vector2 previewSize = ProjectWorldSize(centerWorld, previewSizeWorld, rectTransform);
+                UITheme.SetRect(_cellIndicators[i].rectTransform, Vector2.zero, previewSize);
             }
         }
 
@@ -118,6 +133,7 @@ namespace LinkShot.UI
             _defaultCell = null;
             _disposableCells.Clear();
             _onConfirm = onConfirm;
+            LayoutGrid();
             RefreshVisuals();
             gameObject.SetActive(true);
         }
