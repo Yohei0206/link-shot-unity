@@ -187,3 +187,22 @@ public interface ICardEffect {
 - WebGLビルドサイズ: 可能な限り削減する（Strip Engine Code有効、未使用パッケージ削除、テクスチャはスプライトアトラス化）
 - 物理演算はショット中のみ必要。待機中は `Physics2D.simulationMode` を Script に切り替えるか、ボールを非アクティブにして負荷ゼロを維持する
 - unityroomのアップロード上限サイズに収まることをPhase 1完了条件に含める
+
+### 6.1 WebGL Player Settings（確定値）
+
+unityroomのヘルプ（https://help.unityroom.com/unityroom-351dc3ed5de980eebd79eef3b153be31 ）に記載の推奨設定に合わせて確定。今後のビルドもこの設定を維持する。
+
+| 設定項目 | 値 | 備考 |
+| :---- | :---- | :---- |
+| Development Build | オフ | |
+| Compression Format | **Gzip** | 既定のBrotliではなくunityroom推奨のGzipを使用（`PlayerSettings.WebGL.compressionFormat`） |
+| Decompression Fallback | オフ | |
+| Scenes In Build | `Assets/Scenes/Match.unity` のみ | 2DテンプレートのデフォルトSampleSceneは含めない |
+
+ビルドサイズの実績: 約16MB（Gzip、フォント埋め込み込み）。
+
+### 6.2 日本語フォント
+
+- uGUIの`Text`は動的OSフォント（`Arial.ttf`/`LegacyRuntime.ttf`）ではWebGLで描画されない（OSフォントレンダリングに依存するため）上、日本語グリフも持たない
+- `Assets/Resources/Fonts/NotoSansJP-Subset.ttf` に、Noto Sans JP（SIL Open Font License）からゲーム内で実際に使用する文字だけを抽出したサブセットを同梱し、`UITheme.DefaultFont` から読み込む
+- 新しい日本語テキストをコードに追加した場合、そのグリフがサブセットに含まれていないと文字化け（tofu）するため、フォントの再生成が必要になる場合がある

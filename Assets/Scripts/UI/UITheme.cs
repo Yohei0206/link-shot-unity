@@ -19,7 +19,9 @@ namespace LinkShot.UI
 
         public static Sprite LoadGoldRank(int index) => Resources.Load<Sprite>(GoldRankPath + $"rank{index:000}");
 
-        public static Font DefaultFont => Resources.GetBuiltinResource<Font>("LegacyRuntime.ttf");
+        private static Font _defaultFont;
+
+        public static Font DefaultFont => _defaultFont != null ? _defaultFont : (_defaultFont = Resources.Load<Font>("Fonts/NotoSansJP-Subset"));
 
         public static GameObject CreateEventSystem()
         {
