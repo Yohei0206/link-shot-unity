@@ -72,5 +72,6 @@ namespace LinkShot.Core
         public const float CpuShotPowerSigma = 0.08f; // 【暫定】CPUの狙いパワーのノイズ(標準偏差)
         public const float CpuStrongCardBiasWeight = 0.6f; // 【暫定】強CPUが有利属性カードを選ぶ確率の重み付け
         public const float CpuWallSpendBehindThreshold = 0.5f; // 【暫定】この割合以上ラウンドが残っていれば負けていても温存
+        public const float CpuCenterAimBiasRadians = 0.3f; // 【暫定】強CPUが端の発射ポジションから撃つときの中央寄せ補正角(最大値)
     }
 }

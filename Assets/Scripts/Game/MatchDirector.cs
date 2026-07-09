@@ -510,7 +510,7 @@ namespace LinkShot.Game
             if (attackerIsCpu)
             {
                 yield return new WaitForSeconds(GameConfig.CpuThinkDelaySeconds);
-                (float angleOffset, float power) = CpuShotAimPlanner.GetAim(_cpuDifficulty, _cpuRng);
+                (float angleOffset, float power) = CpuShotAimPlanner.GetAim(_cpuDifficulty, _state.Field.LaunchPosition, _cpuRng);
                 Vector2 direction = Quaternion.Euler(0f, 0f, angleOffset * Mathf.Rad2Deg) * Vector2.up;
                 _slingshotInput.LaunchCpuShot(direction, power);
             }

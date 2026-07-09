@@ -21,9 +21,22 @@ namespace LinkShot.AI
             return rng.NextFloat01() < rerollChance;
         }
 
+        /// <summary>
+        /// POSITION_CHOICE発動時の自由選択。Weakは完全ランダム、Strongは中央寄りのポジションを選好する
+        /// (2つ候補を引いて中央に近い方を採用する、シンプルな中央寄せサンプリング)。
+        /// </summary>
         public static int ChoosePosition(CpuDifficulty difficulty, Rng rng)
         {
-            return rng.NextInt(1, GameConfig.LaunchPositionCount + 1);
+            int a = rng.NextInt(1, GameConfig.LaunchPositionCount + 1);
+
+            if (difficulty == CpuDifficulty.Weak)
+            {
+                return a;
+            }
+
+            int b = rng.NextInt(1, GameConfig.LaunchPositionCount + 1);
+            float center = (GameConfig.LaunchPositionCount + 1) / 2f;
+            return System.Math.Abs(a - center) <= System.Math.Abs(b - center) ? a : b;
         }
     }
 }
