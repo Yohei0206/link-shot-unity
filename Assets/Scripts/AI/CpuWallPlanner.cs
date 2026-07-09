@@ -4,23 +4,31 @@ using LinkShot.Core;
 namespace LinkShot.AI
 {
     /// <summary>
-    /// CPUの壁配置（GAME_RULES.md 9章）。常設壁1枚はランダムなセルに置き、
-    /// 使い捨て壁カードは残りラウンド数と点差に応じて温存/消費を決める簡単なヒューリスティック。
+    /// CPUの壁配置（GAME_RULES.md 9章）。使い捨て壁カードは残りラウンド数と点差に応じて温存/消費を決める。
+    /// Weakはランダムなセルに散らして置くだけだが、Strongは中央付近に隣接させて並べ、
+    /// 得点の高い的（500点の「星」）が置かれやすい中央の直線経路をひとまとまりの壁で塞ぐ。
+    /// 的の実際の座標はGame層にしかないため(Core非依存の制約)、中央列への集中配置で代替する。
     /// </summary>
     public static class CpuWallPlanner
     {
         public static (int DefaultCell, List<int> DisposableCells) PlanWalls(GameState state, int defenderPlayer, CpuDifficulty difficulty, Rng rng)
         {
+            PlayerState defender = state.Players[defenderPlayer];
+            PlayerState opponent = state.Players[1 - defenderPlayer];
+            int spendCount = DecideSpendCount(state, defender, opponent, difficulty, rng);
+
+            return difficulty == CpuDifficulty.Strong
+                ? PlanClusteredWalls(spendCount, rng)
+                : PlanScatteredWalls(spendCount, rng);
+        }
+
+        private static (int, List<int>) PlanScatteredWalls(int spendCount, Rng rng)
+        {
             var occupied = new HashSet<int>();
             int defaultCell = rng.NextInt(0, GameConfig.WallGridCellCount);
             occupied.Add(defaultCell);
 
-            PlayerState defender = state.Players[defenderPlayer];
-            PlayerState opponent = state.Players[1 - defenderPlayer];
-
-            int spendCount = DecideSpendCount(state, defender, opponent, difficulty, rng);
             var disposableCells = new List<int>();
-
             int attempts = 0;
             int maxAttempts = GameConfig.WallGridCellCount * 2;
             while (disposableCells.Count < spendCount && attempts < maxAttempts)
@@ -32,6 +40,40 @@ namespace LinkShot.AI
                 }
 
                 attempts++;
+            }
+
+            return (defaultCell, disposableCells);
+        }
+
+        /// <summary>中央列を起点に、左右交互に隣接セルへ広げてひとまとまりの壁列を作る。</summary>
+        private static (int, List<int>) PlanClusteredWalls(int spendCount, Rng rng)
+        {
+            int columns = GameConfig.WallGridColumns;
+            int rows = GameConfig.WallGridRows;
+
+            int centerCol = columns / 2;
+            int startCol = System.Math.Clamp(centerCol + rng.NextInt(-1, 2), 0, columns - 1);
+            int row = rng.NextInt(0, rows);
+            int defaultCell = row * columns + startCol;
+
+            var disposableCells = new List<int>();
+            int offset = 1;
+            bool expandRight = true;
+
+            while (disposableCells.Count < spendCount && offset < columns)
+            {
+                int col = expandRight ? startCol + offset : startCol - offset;
+                if (col >= 0 && col < columns)
+                {
+                    disposableCells.Add(row * columns + col);
+                }
+
+                if (!expandRight)
+                {
+                    offset++;
+                }
+
+                expandRight = !expandRight;
             }
 
             return (defaultCell, disposableCells);
