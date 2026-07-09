@@ -48,7 +48,13 @@ namespace LinkShot.Network
 
         public static GameAction Decode(string json)
         {
-            return ToAction(JsonUtility.FromJson<Payload>(json));
+            return DecodeFromPayload(JsonUtility.FromJson<Payload>(json));
+        }
+
+        /// <summary>PostgRESTのレスポンスで既にオブジェクトとしてパース済みのPayloadから復元する場合はこちら。</summary>
+        public static GameAction DecodeFromPayload(Payload payload)
+        {
+            return ToAction(payload);
         }
 
         private static Payload ToPayload(GameAction action)
