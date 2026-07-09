@@ -26,7 +26,7 @@
 - **物理演算**: Unity 2D Physics（Rigidbody2D / Collider2D）
 - **UI**: カード選択・壁配置などはuGUI（Canvas）
 - **状態管理**: ルールロジックは純粋C#のステートマシンとして実装（UnityEngine非依存）
-- **バックエンド（Phase 3以降）**: Supabase REST API（UnityWebRequest経由・非同期対戦）
+- **バックエンド（Phase 3以降）**: Supabase REST API（UnityWebRequest経由・同期対戦、ポーリング方式）
 
 詳細は `docs/ARCHITECTURE.md` を参照。
 
@@ -34,7 +34,7 @@
 
 1. **Phase 1（MVP）**: ルールエンジン＋1台ローカル対戦（人間 vs 人間、同一デバイス交互操作）
 2. **Phase 2**: CPU対戦（AIの実装）
-3. **Phase 3**: オンライン非同期対戦（Supabase連携）
+3. **Phase 3**: オンライン同期対戦（Supabase連携）
 
 現在のフェーズは `docs/ROADMAP.md` を参照。**Phase 1完了前にPhase 2以降のコードを書かないこと。**
 

@@ -1,0 +1,16 @@
+{
+    "name": "LinkShot.Network",
+    "rootNamespace": "LinkShot.Network",
+    "references": [
+        "LinkShot.Core"
+    ],
+    "includePlatforms": [],
+    "excludePlatforms": [],
+    "allowUnsafeCode": false,
+    "overrideReferences": false,
+    "precompiledReferences": [],
+    "autoReferenced": true,
+    "defineConstraints": [],
+    "versionDefines": [],
+    "noEngineReferences": false
+}

@@ -4,6 +4,7 @@
     "references": [
         "LinkShot.Core",
         "LinkShot.AI",
+        "LinkShot.Network",
         "UnityEngine.TestRunner",
         "UnityEditor.TestRunner"
     ],

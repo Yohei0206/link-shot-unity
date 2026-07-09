@@ -10,7 +10,7 @@
 | UI | uGUI（Canvas） | カード選択・壁配置UI・スコア表示・ログ |
 | テスト | Unity Test Framework（NUnit） | `Core/` のルールエンジンを対象（EditModeテスト） |
 | 公開先 | **unityroom**（Unity WebGL） | |
-| バックエンド | Supabase REST API（Phase 3のみ・UnityWebRequest経由） | 非同期対戦のデータ保存 |
+| バックエンド | Supabase REST API（Phase 3のみ・UnityWebRequest経由） | 同期対戦の状態保存・ポーリング同期 |
 
 ### unityroom公開に関する制約・注意
 
@@ -163,12 +163,16 @@ public interface ICardEffect {
 
 ## 4. データモデル（Phase 3: Supabase）
 
-方針のみ（Phase 3着手時に詳細化）:
+**オンライン対戦は同期対戦（両者が同時にオンラインで対戦する）方式とする。** 非同期（片方が離脱しても後で再開できる）方式は採用しない。
 
-- WebGLからはWebSocketの安定性に注意が必要なため、**Realtime購読ではなくポーリング方式を第一候補**とする【暫定】
-- UnityWebRequestでSupabase REST API（PostgREST）を叩く。公式SDKには依存しない
-- テーブル案: `matches` / `match_actions`（カードセット・壁配置・ショット結果の逐次ログ）
-- 認証は匿名キー＋行レベルセキュリティから始める
+- 通信はSupabase REST API（PostgREST）をUnityWebRequestで叩く。公式SDKには依存しない
+- WebGLからはWebSocketの安定性に注意が必要なため、**Realtime購読ではなくポーリング方式（1〜1.5秒間隔）を使う**【暫定】。同期対戦でもこの間隔で体感上問題ない
+- マッチングは**ルームコード方式**（友達と対戦）。ランダムマッチは後回し
+- テーブル: `matches`（試合1件の状態）/ `match_actions`（カードセット・壁配置・発射ポジション決定・ショット結果などの確定アクションを追記していくログ。1行=1アクション、`sequence`列で順序管理）。スキーマとRLSポリシーの実体は`supabase/schema.sql`を参照
+- 認証はSupabase匿名認証。匿名ユーザーIDをPlayerPrefsに保存し、再接続時に同一参加者として扱う
+- RLSは「その試合の参加者(`player0_id`/`player1_id`)だけが読み書きできる」ことのみ保証する（第三者からの覗き見・改ざん防止が目的）。**相手プレイヤー自身に対するカード情報の秘匿はサーバー側では行わない**（クライアント信頼モデル。両者のカードが確定するまでUI/ロジック側が表示・使用しないだけ）。厳密な秘匿が必要になった場合はEdge Function等でのサーバー側マスキングを別途検討する
+- 乱数(発射ポジションのダイスロール等)は手番を持つ側のクライアントがCore側で通常通り消費し、結果を`match_actions`に含めて同期する。受信側はCoreの乱数を再消費せず、同期された結果をそのまま状態へ反映する（両クライアントの乱数を厳密にロックステップさせる複雑さを避けるため）
+- 相手のショットは物理演算のやり直しではなく、初速ベクトル（発射方向・パワー）の記録からの近似再現（リプレイ）で見せる
 
 ## 5. 画面構成
 
