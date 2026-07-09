@@ -17,14 +17,21 @@ namespace LinkShot.UI
             Image background = UITheme.CreateImage(transform, "Background", null, new Color(0.08f, 0.1f, 0.16f, 1f));
             UITheme.Stretch(background.rectTransform);
 
-            Text title = UITheme.CreateText(transform, "Title", "Link-Shot", 96, Color.white, TextAnchor.MiddleCenter);
-            UITheme.SetRect(title.rectTransform, new Vector2(0, 120), new Vector2(1400, 200));
+            Text title = UITheme.CreateText(transform, "Title", "LINK-SHOT", 110, new Color(1f, 0.85f, 0.25f), TextAnchor.MiddleCenter);
+            title.fontStyle = FontStyle.Bold;
+            UITheme.SetRect(title.rectTransform, new Vector2(0, 60), new Vector2(1500, 220));
 
-            Text subtitle = UITheme.CreateText(transform, "Subtitle", "交代制フリーキック対戦", 32, new Color(0.8f, 0.85f, 0.95f), TextAnchor.MiddleCenter);
-            UITheme.SetRect(subtitle.rectTransform, new Vector2(0, 10), new Vector2(1200, 80));
+            // ロゴ画像素材が無いため、太字＋アウトライン＋ドロップシャドウでロゴ風に見せる。
+            Outline outline = title.gameObject.AddComponent<Outline>();
+            outline.effectColor = new Color(0.35f, 0.15f, 0f, 1f);
+            outline.effectDistance = new Vector2(4, -4);
+
+            Shadow shadow = title.gameObject.AddComponent<Shadow>();
+            shadow.effectColor = new Color(0f, 0f, 0f, 0.6f);
+            shadow.effectDistance = new Vector2(6, -8);
 
             Button startButton = UITheme.CreateButton(transform, "StartButton", "タップして始める", HandleStartClicked);
-            UITheme.SetRect(startButton.GetComponent<RectTransform>(), new Vector2(0, -220), new Vector2(500, 130));
+            UITheme.SetRect(startButton.GetComponent<RectTransform>(), new Vector2(0, -180), new Vector2(500, 130));
 
             gameObject.SetActive(false);
         }

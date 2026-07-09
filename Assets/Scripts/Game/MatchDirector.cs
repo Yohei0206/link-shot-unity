@@ -77,9 +77,11 @@ namespace LinkShot.Game
             }
         }
 
-        /// <summary>タイトル画面。タップでモード選択へ進む。</summary>
+        /// <summary>タイトル画面。タップでモード選択へ進む。試合開始前は情報パネルも隠す。</summary>
         private IEnumerator RunTitleScreen()
         {
+            _hudPanel.Hide();
+
             bool started = false;
             _titlePanel.Show(() => started = true);
             yield return new WaitUntil(() => started);
@@ -130,6 +132,7 @@ namespace LinkShot.Game
             yield return new WaitUntil(() => concealed);
 
             _state = new GameState(decks[0], decks[1]);
+            _hudPanel.Show();
         }
 
         /// <summary>(12) リザルト画面: 最終スコア・勝敗・全ショット履歴を表示し、「もう一度遊ぶ」を待つ。</summary>

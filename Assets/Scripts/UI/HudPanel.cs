@@ -15,6 +15,7 @@ namespace LinkShot.UI
         private const string CardPanelSpritePath = "UI/Kenney/FantasyBorders/panel-007";
         private static readonly Color EmptyColor = new Color(1f, 1f, 1f, 0f);
 
+        private GameObject _persistentHud;
         private Text _statusText;
         private PlayerInfoCard _player0Card;
         private PlayerInfoCard _player1Card;
@@ -33,11 +34,19 @@ namespace LinkShot.UI
 
         private void Awake()
         {
-            _statusText = UITheme.CreateText(transform, "Status", string.Empty, 26, Color.white, TextAnchor.UpperCenter);
+            var persistentGo = new GameObject("PersistentHud", typeof(RectTransform));
+            persistentGo.transform.SetParent(transform, false);
+            UITheme.Stretch((RectTransform)persistentGo.transform);
+            _persistentHud = persistentGo;
+
+            _statusText = UITheme.CreateText(_persistentHud.transform, "Status", string.Empty, 26, Color.white, TextAnchor.UpperCenter);
             UITheme.SetRect(_statusText.rectTransform, new Vector2(0, 515), new Vector2(1600, 60));
 
-            _player0Card = BuildPlayerCard("P1Card", new Vector2(-800, 60));
-            _player1Card = BuildPlayerCard("P2Card", new Vector2(800, 60));
+            _player0Card = BuildPlayerCard(_persistentHud.transform, "P1Card", new Vector2(-800, 60));
+            _player1Card = BuildPlayerCard(_persistentHud.transform, "P2Card", new Vector2(800, 60));
+
+            // 情報パネルは試合が実際に始まるまで非表示にする(MatchDirectorがShow/Hideで制御)。
+            _persistentHud.SetActive(false);
 
             var overlayGo = new GameObject("ResultOverlay", typeof(RectTransform));
             overlayGo.transform.SetParent(transform, false);
@@ -60,9 +69,9 @@ namespace LinkShot.UI
         /// 自分側(P1)は左、相手側(P2)は右にカードUI風のボードを配置する。
         /// 属性アイコンをカード名の左に置く横並びレイアウト。
         /// </summary>
-        private PlayerInfoCard BuildPlayerCard(string name, Vector2 position)
+        private PlayerInfoCard BuildPlayerCard(Transform parent, string name, Vector2 position)
         {
-            Image background = UITheme.CreateImage(transform, name, Resources.Load<Sprite>(CardPanelSpritePath), Color.white);
+            Image background = UITheme.CreateImage(parent, name, Resources.Load<Sprite>(CardPanelSpritePath), Color.white);
             UITheme.SetRect(background.rectTransform, position, new Vector2(300, 260));
 
             Text scoreText = UITheme.CreateText(background.transform, "Score", string.Empty, 30, Color.black, TextAnchor.MiddleCenter);
@@ -85,6 +94,18 @@ namespace LinkShot.UI
                 EffectNameText = effectNameText,
                 StatusText = statusText,
             };
+        }
+
+        /// <summary>試合開始時に情報パネル(フェーズ表示・両プレイヤーのカードボード)を表示する。</summary>
+        public void Show()
+        {
+            _persistentHud.SetActive(true);
+        }
+
+        /// <summary>タイトルに戻るときなど、試合が始まっていない間は情報パネルを隠す。</summary>
+        public void Hide()
+        {
+            _persistentHud.SetActive(false);
         }
 
         public void UpdateStatus(string phaseLabel)
