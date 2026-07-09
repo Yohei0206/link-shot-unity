@@ -4,6 +4,7 @@ using System.Collections.Generic;
 using LinkShot.AI;
 using LinkShot.Core;
 using LinkShot.Core.Effects;
+using LinkShot.Network;
 using LinkShot.UI;
 using UnityEngine;
 
@@ -31,6 +32,7 @@ namespace LinkShot.Game
         private HandoverScreen _handoverScreen;
         private TitlePanel _titlePanel;
         private ModeSelectPanel _modeSelectPanel;
+        private OnlineRoomPanel _onlineRoomPanel;
         private DeckSelectPanel _deckSelectPanel;
         private CardSelectPanel _cardSelectPanel;
         private WallPlacementPanel _wallPlacementPanel;
@@ -40,11 +42,71 @@ namespace LinkShot.Game
         private ResultPanel _resultPanel;
 
         // --- Phase 2: CPU対戦 ---
-        private int? _cpuPlayerIndex; // null = 2人対戦。0/1ならそのプレイヤー枠がCPU。
+        private int? _cpuPlayerIndex; // null = CPUなし。0/1ならそのプレイヤー枠がCPU。
         private CpuDifficulty _cpuDifficulty;
         private readonly Rng _cpuRng = new Rng();
 
         private bool IsCpu(int player) => _cpuPlayerIndex == player;
+
+        // --- Phase 3: オンライン同期対戦 ---
+        private OnlineMatchService _onlineService;
+        private bool _isOnlineMode;
+        private int? _remotePlayerIndex; // null = オンラインでない。0/1ならそのプレイヤー枠が相手(リモート)。
+
+        private bool IsRemote(int player) => _remotePlayerIndex == player;
+
+        /// <summary>確定したactionを、オンライン対戦中だけmatch_actionsへ非同期でpushする(結果を待たない)。</summary>
+        private void SyncIfOnline(GameAction action)
+        {
+            if (_isOnlineMode)
+            {
+                StartCoroutine(PushActionFireAndForget(action));
+            }
+        }
+
+        private IEnumerator PushActionFireAndForget(GameAction action)
+        {
+            yield return _onlineService.PushAction(action, (ok, err) =>
+            {
+                if (!ok)
+                {
+                    Debug.LogError($"[Online] アクション送信失敗: {err}");
+                }
+            });
+        }
+
+        /// <summary>相手(リモート)からの次のアクションが届くまでポーリングし続け、届いたらonReceivedへ渡す。</summary>
+        private IEnumerator WaitForRemoteAction(Action<GameAction> onReceived)
+        {
+            while (true)
+            {
+                List<MatchActionRow> rows = null;
+                bool ok = false;
+
+                yield return _onlineService.PollNewActions((success, result, err) =>
+                {
+                    ok = success;
+                    rows = result;
+                    if (!success)
+                    {
+                        Debug.LogError($"[Online] ポーリング失敗: {err}");
+                    }
+                });
+
+                if (ok && rows != null && rows.Count > 0)
+                {
+                    if (rows.Count > 1)
+                    {
+                        Debug.LogWarning($"[Online] 1件のアクションを期待していたが{rows.Count}件届いた。先頭のみ使用する。");
+                    }
+
+                    onReceived(NetworkActionCodec.DecodeFromPayload(rows[0].payload));
+                    yield break;
+                }
+
+                yield return new WaitForSeconds(1.2f);
+            }
+        }
 
         private void Start()
         {
@@ -87,17 +149,115 @@ namespace LinkShot.Game
             yield return new WaitUntil(() => started);
         }
 
-        /// <summary>対戦モード選択(ROADMAP.md Phase 2)。</summary>
+        /// <summary>対戦モード選択(ROADMAP.md Phase 2/3)。</summary>
         private IEnumerator RunModeSelect()
         {
+            _cpuPlayerIndex = null;
+            _isOnlineMode = false;
+            _remotePlayerIndex = null;
+            _onlineService = null;
+
             bool chosen = false;
-            _modeSelectPanel.Show((cpuPlayerIndex, difficulty) =>
-            {
-                _cpuPlayerIndex = cpuPlayerIndex;
-                _cpuDifficulty = difficulty;
-                chosen = true;
-            });
+            bool onlineChosen = false;
+
+            _modeSelectPanel.Show(
+                (cpuPlayerIndex, difficulty) =>
+                {
+                    _cpuPlayerIndex = cpuPlayerIndex;
+                    _cpuDifficulty = difficulty;
+                    chosen = true;
+                },
+                () =>
+                {
+                    onlineChosen = true;
+                    chosen = true;
+                });
+
             yield return new WaitUntil(() => chosen);
+
+            if (onlineChosen)
+            {
+                yield return RunOnlineRoomSetup();
+            }
+        }
+
+        /// <summary>オンライン対戦: サインイン→ルーム作成/参加→相手接続待ちまでを行う(ROADMAP.md Phase 3)。</summary>
+        private IEnumerator RunOnlineRoomSetup()
+        {
+            _isOnlineMode = true;
+
+            var config = Resources.Load<SupabaseConfig>("Network/SupabaseConfig");
+            _onlineService = new OnlineMatchService(config);
+
+            yield return _onlineService.SignIn((ok, err) =>
+            {
+                if (!ok)
+                {
+                    _onlineRoomPanel.ShowStatus($"サインインに失敗しました: {err}");
+                }
+            });
+
+            bool ready = false;
+            _onlineRoomPanel.Show(
+                () => StartCoroutine(HandleCreateRoomClicked(() => ready = true)),
+                code => StartCoroutine(HandleJoinRoomClicked(code, () => ready = true)));
+
+            yield return new WaitUntil(() => ready);
+
+            _remotePlayerIndex = 1 - _onlineService.LocalPlayerIndex;
+            _onlineRoomPanel.Hide();
+        }
+
+        private IEnumerator HandleCreateRoomClicked(Action onReady)
+        {
+            bool created = false;
+            string roomCode = null;
+
+            yield return _onlineService.CreateRoom((ok, code, err) =>
+            {
+                created = ok;
+                roomCode = code;
+                if (!ok)
+                {
+                    _onlineRoomPanel.ShowStatus($"部屋の作成に失敗しました: {err}");
+                }
+            });
+
+            if (!created)
+            {
+                yield break;
+            }
+
+            _onlineRoomPanel.ShowWaitingForOpponent(roomCode);
+
+            yield return _onlineService.WaitForOpponent((ok, err) =>
+            {
+                if (!ok)
+                {
+                    _onlineRoomPanel.ShowStatus($"エラー: {err}");
+                }
+            });
+
+            onReady?.Invoke();
+        }
+
+        private IEnumerator HandleJoinRoomClicked(string roomCode, Action onReady)
+        {
+            bool joined = false;
+
+            yield return _onlineService.JoinRoom(roomCode, (ok, err) =>
+            {
+                joined = ok;
+                if (!ok)
+                {
+                    _onlineRoomPanel.ShowStatus($"参加に失敗しました: {err}");
+                }
+            });
+
+            if (joined)
+            {
+                onReady?.Invoke();
+            }
         }
 
         /// <summary>対戦開始前に、両プレイヤーがデッキ（15種から{GameConfig.DeckSize}枚）を選ぶ。</summary>
@@ -116,23 +276,75 @@ namespace LinkShot.Game
                     continue;
                 }
 
-                bool handoverDone = false;
-                _handoverScreen.Show($"プレイヤー{currentPlayer + 1}に交代してください\nタップしてデッキを選んでください", () => handoverDone = true);
-                yield return new WaitUntil(() => handoverDone);
+                if (IsRemote(currentPlayer))
+                {
+                    List<string> remoteDeck = null;
+                    yield return WaitForRemoteDeckSelection(deck => remoteDeck = deck);
+                    decks[currentPlayer] = remoteDeck;
+                    continue;
+                }
+
+                if (!_isOnlineMode)
+                {
+                    bool handoverDone = false;
+                    _handoverScreen.Show($"プレイヤー{currentPlayer + 1}に交代してください\nタップしてデッキを選んでください", () => handoverDone = true);
+                    yield return new WaitUntil(() => handoverDone);
+                }
 
                 List<string> chosenDeck = null;
                 _deckSelectPanel.Show(currentPlayer, deck => chosenDeck = new List<string>(deck));
                 yield return new WaitUntil(() => chosenDeck != null);
 
                 decks[currentPlayer] = chosenDeck;
+
+                if (_isOnlineMode)
+                {
+                    yield return _onlineService.PushDeckSelection(chosenDeck, (ok, err) =>
+                    {
+                        if (!ok)
+                        {
+                            Debug.LogError($"[Online] デッキ送信失敗: {err}");
+                        }
+                    });
+                }
             }
 
-            bool concealed = false;
-            _handoverScreen.Show("デッキが揃いました\nタップして対戦開始", () => concealed = true);
-            yield return new WaitUntil(() => concealed);
+            if (!_isOnlineMode)
+            {
+                bool concealed = false;
+                _handoverScreen.Show("デッキが揃いました\nタップして対戦開始", () => concealed = true);
+                yield return new WaitUntil(() => concealed);
+            }
 
             _state = new GameState(decks[0], decks[1]);
             _hudPanel.Show();
+        }
+
+        private IEnumerator WaitForRemoteDeckSelection(Action<List<string>> onReceived)
+        {
+            while (true)
+            {
+                List<MatchActionRow> rows = null;
+                bool ok = false;
+
+                yield return _onlineService.PollNewActions((success, result, err) =>
+                {
+                    ok = success;
+                    rows = result;
+                    if (!success)
+                    {
+                        Debug.LogError($"[Online] ポーリング失敗: {err}");
+                    }
+                });
+
+                if (ok && rows != null && rows.Count > 0)
+                {
+                    onReceived(new List<string>(rows[0].payload.deckCardIds));
+                    yield break;
+                }
+
+                yield return new WaitForSeconds(1.2f);
+            }
         }
 
         /// <summary>(12) リザルト画面: 最終スコア・勝敗・全ショット履歴を表示し、「もう一度遊ぶ」を待つ。</summary>
@@ -218,6 +430,7 @@ namespace LinkShot.Game
 
             _handoverScreen = CreateFullScreenPanel<HandoverScreen>(canvas.transform, "HandoverScreen");
             _modeSelectPanel = CreateFullScreenPanel<ModeSelectPanel>(canvas.transform, "ModeSelectPanel");
+            _onlineRoomPanel = CreateFullScreenPanel<OnlineRoomPanel>(canvas.transform, "OnlineRoomPanel");
             _deckSelectPanel = CreateFullScreenPanel<DeckSelectPanel>(canvas.transform, "DeckSelectPanel");
             _cardSelectPanel = CreateFullScreenPanel<CardSelectPanel>(canvas.transform, "CardSelectPanel");
             _wallPlacementPanel = CreateFullScreenPanel<WallPlacementPanel>(canvas.transform, "WallPlacementPanel");
@@ -286,23 +499,37 @@ namespace LinkShot.Game
                     continue;
                 }
 
-                bool handoverDone = false;
-                _handoverScreen.Show($"プレイヤー{currentPlayer + 1}に交代してください\nタップしてカードを選んでください", () => handoverDone = true);
-                yield return new WaitUntil(() => handoverDone);
+                if (IsRemote(currentPlayer))
+                {
+                    yield return WaitForRemoteAction(action => PhaseMachine.Dispatch(_state, action));
+                    continue;
+                }
+
+                if (!_isOnlineMode)
+                {
+                    bool handoverDone = false;
+                    _handoverScreen.Show($"プレイヤー{currentPlayer + 1}に交代してください\nタップしてカードを選んでください", () => handoverDone = true);
+                    yield return new WaitUntil(() => handoverDone);
+                }
 
                 bool selected = false;
                 _cardSelectPanel.Show(currentPlayer, _state.Players[currentPlayer].Hand, cardId =>
                 {
-                    PhaseMachine.Dispatch(_state, new SetCardAction(currentPlayer, cardId));
+                    var action = new SetCardAction(currentPlayer, cardId);
+                    PhaseMachine.Dispatch(_state, action);
+                    SyncIfOnline(action);
                     selected = true;
                 });
                 yield return new WaitUntil(() => selected);
                 _cardSelectPanel.Hide();
             }
 
-            bool concealed = false;
-            _handoverScreen.Show("カードが揃いました\nタップして壁配置に進みます", () => concealed = true);
-            yield return new WaitUntil(() => concealed);
+            if (!_isOnlineMode)
+            {
+                bool concealed = false;
+                _handoverScreen.Show("カードが揃いました\nタップして壁配置に進みます", () => concealed = true);
+                yield return new WaitUntil(() => concealed);
+            }
         }
 
         private IEnumerator RunWallPlacementPhase()
@@ -324,11 +551,23 @@ namespace LinkShot.Game
                 yield break;
             }
 
+            if (IsRemote(defender))
+            {
+                yield return WaitForRemoteAction(action =>
+                {
+                    PhaseMachine.Dispatch(_state, action);
+                    _fieldView.ApplyWalls(_state.Field.DefenderWalls);
+                });
+                yield break;
+            }
+
             bool confirmed = false;
             _wallPlacementPanel.Show(defender, _state.Players[defender].DisposableWallCardsRemaining, (defaultCell, disposableCells) =>
             {
-                PhaseMachine.Dispatch(_state, new PlaceWallsAction(defaultCell, disposableCells));
+                var action = new PlaceWallsAction(defaultCell, disposableCells);
+                PhaseMachine.Dispatch(_state, action);
                 _fieldView.ApplyWalls(_state.Field.DefenderWalls);
+                SyncIfOnline(action);
                 confirmed = true;
             });
 
@@ -341,8 +580,20 @@ namespace LinkShot.Game
         /// </summary>
         private IEnumerator RunPositionRollPhase()
         {
+            int attacker = _state.CurrentAttacker;
+
+            if (IsRemote(attacker))
+            {
+                // 発射ポジション決定(サイコロ・振り直し等)は全て攻撃側(相手)のRngで行われるため、
+                // こちらでは再現しようとせず、確定した最終ポジションだけを受け取って反映する。
+                yield return WaitForRemotePositionFinalized();
+                _fieldView.HighlightLaunchPosition(_state.Field.LaunchPosition);
+                Debug.Log($"[Round {_state.Round} Shot {_state.ShotIndex}] 発射ポジション: {_state.Field.LaunchPosition}");
+                yield break;
+            }
+
             ICardEffect effect = _state.CurrentShotEffectActivated ? EffectRegistry.Get(_state.AttackerCard.Effect) : null;
-            bool attackerIsCpu = IsCpu(_state.CurrentAttacker);
+            bool attackerIsCpu = IsCpu(attacker);
 
             if (effect != null && effect.ReplacesPositionRoll)
             {
@@ -392,8 +643,59 @@ namespace LinkShot.Game
                 }
             }
 
+            // オンライン対戦では、サイコロ/振り直しの過程そのものは同期せず、
+            // 攻撃側で最終確定したLaunchPositionの値だけを相手へ送る(乱数のロックステップを避けるため)。
+            if (_isOnlineMode)
+            {
+                var payload = new NetworkActionCodec.Payload { actionType = "PositionFinalized", position = _state.Field.LaunchPosition };
+                StartCoroutine(PushRawFireAndForget("PositionFinalized", JsonUtility.ToJson(payload)));
+            }
+
             _fieldView.HighlightLaunchPosition(_state.Field.LaunchPosition);
             Debug.Log($"[Round {_state.Round} Shot {_state.ShotIndex}] 発射ポジション: {_state.Field.LaunchPosition}");
+        }
+
+        private IEnumerator PushRawFireAndForget(string actionType, string payloadJson)
+        {
+            yield return _onlineService.PushRaw(actionType, payloadJson, (ok, err) =>
+            {
+                if (!ok)
+                {
+                    Debug.LogError($"[Online] {actionType}送信失敗: {err}");
+                }
+            });
+        }
+
+        /// <summary>相手(攻撃側)が確定した発射ポジションを受け取り、Coreの状態へ直接反映する(乱数は再現しない)。</summary>
+        private IEnumerator WaitForRemotePositionFinalized()
+        {
+            while (true)
+            {
+                List<MatchActionRow> rows = null;
+                bool ok = false;
+
+                yield return _onlineService.PollNewActions((success, result, err) =>
+                {
+                    ok = success;
+                    rows = result;
+                    if (!success)
+                    {
+                        Debug.LogError($"[Online] ポーリング失敗: {err}");
+                    }
+                });
+
+                if (ok && rows != null && rows.Count > 0)
+                {
+                    int position = rows[0].payload.position;
+                    _state.Field.LaunchPosition = position;
+                    _state.PendingDiceRoll = null;
+                    _state.RerollAvailable = false;
+                    _state.Phase = Phase.EffectResolve;
+                    yield break;
+                }
+
+                yield return new WaitForSeconds(1.2f);
+            }
         }
 
         /// <summary>
@@ -403,13 +705,20 @@ namespace LinkShot.Game
         private IEnumerator RunEffectResolvePhase()
         {
             EffectChoice choice = default;
+            int attacker = _state.CurrentAttacker;
+            bool receivedFromRemote = false;
 
             if (_state.CurrentShotEffectActivated)
             {
                 EffectId effectId = _state.AttackerCard.Effect;
                 Debug.Log($"[Round {_state.Round} Shot {_state.ShotIndex}] 攻撃効果発動: {effectId}");
 
-                if (IsCpu(_state.CurrentAttacker) && NeedsEffectTarget(effectId))
+                if (IsRemote(attacker) && NeedsEffectTarget(effectId))
+                {
+                    yield return WaitForRemoteAction(action => choice = ((ResolveEffectAction)action).Choice);
+                    receivedFromRemote = true;
+                }
+                else if (IsCpu(attacker) && NeedsEffectTarget(effectId))
                 {
                     yield return new WaitForSeconds(GameConfig.CpuThinkDelaySeconds);
                     choice = CpuEffectChoiceSelector.Choose(_state, effectId, _cpuDifficulty, _cpuRng);
@@ -459,7 +768,13 @@ namespace LinkShot.Game
                 }
             }
 
-            PhaseMachine.Dispatch(_state, new ResolveEffectAction(choice));
+            var resolveAction = new ResolveEffectAction(choice);
+            PhaseMachine.Dispatch(_state, resolveAction);
+            if (!receivedFromRemote)
+            {
+                SyncIfOnline(resolveAction);
+            }
+
             _fieldView.ApplyWalls(_state.Field.DefenderWalls);
             _fieldView.ApplyBounceBoards(_state.Field.BounceBoards);
             _fieldView.ApplyWideGate(_state.Field.WideGateZone);
@@ -488,8 +803,25 @@ namespace LinkShot.Game
 
             while (_state.Phase == Phase.Shot)
             {
-                yield return RunSingleAttempt(origin);
+                if (IsRemote(_state.CurrentAttacker))
+                {
+                    yield return RunRemoteAttempt();
+                }
+                else
+                {
+                    yield return RunSingleAttempt(origin);
+                }
             }
+        }
+
+        /// <summary>
+        /// 相手(攻撃側)のショットを待つ。物理演算のリプレイ再生は未実装で、
+        /// 結果(SubmitShotResultAction)が届くまで待機表示するだけ(ROADMAP.md Phase 3の未完了項目)。
+        /// </summary>
+        private IEnumerator RunRemoteAttempt()
+        {
+            _hudPanel.UpdateStatus("相手がショットを行っています…");
+            yield return WaitForRemoteAction(action => PhaseMachine.Dispatch(_state, action));
         }
 
         private void ApplyShotModifierToBall()
@@ -563,7 +895,9 @@ namespace LinkShot.Game
             _ballObject.SetActive(false);
 
             Debug.Log($"[Round {_state.Round} Shot {_state.ShotIndex}] 着弾結果: {outcome} 命中した的={hitZones.Count}個");
-            PhaseMachine.Dispatch(_state, new SubmitShotResultAction(outcome, hitZones));
+            var resultAction = new SubmitShotResultAction(outcome, hitZones);
+            PhaseMachine.Dispatch(_state, resultAction);
+            SyncIfOnline(resultAction);
         }
 
         private IEnumerator RunScoreResolvePhase()

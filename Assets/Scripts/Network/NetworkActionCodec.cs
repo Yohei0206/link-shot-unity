@@ -39,6 +39,9 @@ namespace LinkShot.Network
             public string wideGateZone;
             public bool hasStolenWallOwner;
             public int stolenWallCardOwnerPlayer;
+
+            /// <summary>actionType=="DeckSelected"のときだけ使う(OnlineMatchService.PushDeckSelection参照)。</summary>
+            public string[] deckCardIds;
         }
 
         public static string Encode(GameAction action)

@@ -133,9 +133,24 @@ namespace LinkShot.Network
         /// <summary>確定したGameActionをmatch_actionsへ追記する。</summary>
         public IEnumerator PushAction(GameAction action, Action<bool, string> onComplete)
         {
+            return PushRaw(action.GetType().Name, NetworkActionCodec.Encode(action), onComplete);
+        }
+
+        /// <summary>
+        /// デッキ選択の同期用。デッキ選択はGameState作成前(PhaseMachineの外)で起きるため、
+        /// 通常のGameActionではなく専用のaction_type("DeckSelected")として送る。
+        /// </summary>
+        public IEnumerator PushDeckSelection(IReadOnlyList<string> cardIds, Action<bool, string> onComplete)
+        {
+            var payload = new NetworkActionCodec.Payload { actionType = "DeckSelected", deckCardIds = cardIds.ToArray() };
+            return PushRaw("DeckSelected", JsonUtility.ToJson(payload), onComplete);
+        }
+
+        /// <summary>GameAction化されていない同期用データ(例: 発射ポジション確定通知)をmatch_actionsへ追記する。</summary>
+        public IEnumerator PushRaw(string actionType, string payloadJson, Action<bool, string> onComplete)
+        {
             int sequence = _lastSeenSequence + 1;
-            string payloadJson = NetworkActionCodec.Encode(action);
-            string body = $"{{\"match_id\":\"{MatchId}\",\"sequence\":{sequence},\"action_type\":\"{action.GetType().Name}\",\"payload\":{payloadJson}}}";
+            string body = $"{{\"match_id\":\"{MatchId}\",\"sequence\":{sequence},\"action_type\":\"{actionType}\",\"payload\":{payloadJson}}}";
 
             bool done = false;
             bool ok = false;
@@ -163,15 +178,18 @@ namespace LinkShot.Network
             onComplete?.Invoke(ok, error);
         }
 
-        /// <summary>前回ポーリング以降に追加されたアクションを、sequence昇順で取得する。</summary>
-        public IEnumerator PollNewActions(Action<bool, List<GameAction>, string> onComplete)
+        /// <summary>
+        /// 前回ポーリング以降に追加された行を、sequence昇順で取得する(生の行を返す。
+        /// "DeckSelected"かGameActionかはMatchDirector側でaction_typeを見て判断する)。
+        /// </summary>
+        public IEnumerator PollNewActions(Action<bool, List<MatchActionRow>, string> onComplete)
         {
             string path = $"match_actions?match_id=eq.{MatchId}&sequence=gt.{_lastSeenSequence}&order=sequence.asc&select=*";
 
             bool done = false;
             bool ok = false;
             string error = null;
-            var actions = new List<GameAction>();
+            var result = new List<MatchActionRow>();
 
             yield return _client.Get(path, (success, response) =>
             {
@@ -186,7 +204,7 @@ namespace LinkShot.Network
                 MatchActionRow[] rows = JsonArrayUtility.FromJsonArray<MatchActionRow>(response);
                 foreach (MatchActionRow row in rows.OrderBy(r => r.sequence))
                 {
-                    actions.Add(NetworkActionCodec.DecodeFromPayload(row.payload));
+                    result.Add(row);
                     _lastSeenSequence = row.sequence;
                 }
             });
@@ -196,7 +214,50 @@ namespace LinkShot.Network
                 yield return null;
             }
 
-            onComplete?.Invoke(ok, actions, error);
+            onComplete?.Invoke(ok, result, error);
+        }
+
+        /// <summary>部屋を作った側が、相手が参加してstatus='active'になるまで待つ。</summary>
+        public IEnumerator WaitForOpponent(Action<bool, string> onComplete)
+        {
+            while (true)
+            {
+                bool done = false;
+                bool active = false;
+                string error = null;
+
+                yield return _client.Get($"matches?id=eq.{MatchId}&select=status", (success, response) =>
+                {
+                    done = true;
+                    if (!success)
+                    {
+                        error = response;
+                        return;
+                    }
+
+                    MatchRow[] rows = JsonArrayUtility.FromJsonArray<MatchRow>(response);
+                    active = rows.Length > 0 && rows[0].status == "active";
+                });
+
+                while (!done)
+                {
+                    yield return null;
+                }
+
+                if (error != null)
+                {
+                    onComplete?.Invoke(false, error);
+                    yield break;
+                }
+
+                if (active)
+                {
+                    onComplete?.Invoke(true, null);
+                    yield break;
+                }
+
+                yield return new WaitForSeconds(1.5f);
+            }
         }
 
         private string GenerateRoomCode()
