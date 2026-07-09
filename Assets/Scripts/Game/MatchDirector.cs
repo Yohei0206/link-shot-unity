@@ -310,7 +310,9 @@ namespace LinkShot.Game
             int defender = _state.CurrentDefender;
 
             // 的は貫通式でショットごとにランダム配置し直す（先攻/後攻それぞれ、GAME_RULES.md 5.1章）。
-            _fieldView.RebuildTargets();
+            Vector2? starWorldPosition = _fieldView.RebuildTargets();
+            _state.Field.StarWallColumn = starWorldPosition.HasValue ? FieldView.GetWallColumnForWorldX(starWorldPosition.Value.x) : (int?)null;
+            _state.Field.StarNearestLaunchPosition = starWorldPosition.HasValue ? FieldView.GetNearestLaunchPositionForWorldX(starWorldPosition.Value.x) : (int?)null;
             _fieldView.HighlightLaunchPosition(null);
 
             if (IsCpu(defender))
@@ -347,7 +349,7 @@ namespace LinkShot.Game
                 if (attackerIsCpu)
                 {
                     yield return new WaitForSeconds(GameConfig.CpuThinkDelaySeconds);
-                    int position = CpuPositionChooser.ChoosePosition(_cpuDifficulty, _cpuRng);
+                    int position = CpuPositionChooser.ChoosePosition(_state, _cpuDifficulty, _cpuRng);
                     PhaseMachine.Dispatch(_state, new ChoosePositionAction(position));
                 }
                 else
@@ -372,7 +374,7 @@ namespace LinkShot.Game
                     if (attackerIsCpu)
                     {
                         yield return new WaitForSeconds(GameConfig.CpuThinkDelaySeconds);
-                        bool wantsReroll = CpuPositionChooser.ChooseReroll(rolled, _cpuDifficulty, _cpuRng);
+                        bool wantsReroll = CpuPositionChooser.ChooseReroll(_state, rolled, _cpuDifficulty, _cpuRng);
                         GameAction action = wantsReroll ? new RerollAction() : (GameAction)new ConfirmPositionAction();
                         PhaseMachine.Dispatch(_state, action);
                     }
@@ -410,7 +412,7 @@ namespace LinkShot.Game
                 if (IsCpu(_state.CurrentAttacker) && NeedsEffectTarget(effectId))
                 {
                     yield return new WaitForSeconds(GameConfig.CpuThinkDelaySeconds);
-                    choice = CpuEffectChoiceSelector.Choose(_state, effectId, _cpuRng);
+                    choice = CpuEffectChoiceSelector.Choose(_state, effectId, _cpuDifficulty, _cpuRng);
                 }
                 else
                 {
@@ -510,7 +512,7 @@ namespace LinkShot.Game
             if (attackerIsCpu)
             {
                 yield return new WaitForSeconds(GameConfig.CpuThinkDelaySeconds);
-                (float angleOffset, float power) = CpuShotAimPlanner.GetAim(_cpuDifficulty, _state.Field.LaunchPosition, _cpuRng);
+                (float angleOffset, float power) = CpuShotAimPlanner.GetAim(_state, _cpuDifficulty, _cpuRng);
                 Vector2 direction = Quaternion.Euler(0f, 0f, angleOffset * Mathf.Rad2Deg) * Vector2.up;
                 _slingshotInput.LaunchCpuShot(direction, power);
             }

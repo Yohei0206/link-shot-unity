@@ -5,9 +5,9 @@ namespace LinkShot.AI
 {
     /// <summary>
     /// CPUの壁配置（GAME_RULES.md 9章）。使い捨て壁カードは残りラウンド数と点差に応じて温存/消費を決める。
-    /// Weakはランダムなセルに散らして置くだけだが、Strongは中央付近に隣接させて並べ、
-    /// 得点の高い的（500点の「星」）が置かれやすい中央の直線経路をひとまとまりの壁で塞ぐ。
-    /// 的の実際の座標はGame層にしかないため(Core非依存の制約)、中央列への集中配置で代替する。
+    /// Weakはランダムなセルに散らして置くだけだが、Strongは`state.Field.StarWallColumn`
+    /// (最高得点の的「星」がある列。Game層がショットごとに算出しCoreへセットする)を起点に
+    /// 隣接セルへ壁を並べ、星への直線経路をひとまとまりの壁で塞ぐ。
     /// </summary>
     public static class CpuWallPlanner
     {
@@ -18,7 +18,7 @@ namespace LinkShot.AI
             int spendCount = DecideSpendCount(state, defender, opponent, difficulty, rng);
 
             return difficulty == CpuDifficulty.Strong
-                ? PlanClusteredWalls(spendCount, rng)
+                ? PlanClusteredWalls(state, spendCount, rng)
                 : PlanScatteredWalls(spendCount, rng);
         }
 
@@ -45,13 +45,15 @@ namespace LinkShot.AI
             return (defaultCell, disposableCells);
         }
 
-        /// <summary>中央列を起点に、左右交互に隣接セルへ広げてひとまとまりの壁列を作る。</summary>
-        private static (int, List<int>) PlanClusteredWalls(int spendCount, Rng rng)
+        /// <summary>
+        /// 星がある列(不明なら中央列)を起点に、左右交互に隣接セルへ広げてひとまとまりの壁列を作る。
+        /// </summary>
+        private static (int, List<int>) PlanClusteredWalls(GameState state, int spendCount, Rng rng)
         {
             int columns = GameConfig.WallGridColumns;
             int rows = GameConfig.WallGridRows;
 
-            int centerCol = columns / 2;
+            int centerCol = state.Field.StarWallColumn ?? columns / 2;
             int startCol = System.Math.Clamp(centerCol + rng.NextInt(-1, 2), 0, columns - 1);
             int row = rng.NextInt(0, rows);
             int defaultCell = row * columns + startCol;

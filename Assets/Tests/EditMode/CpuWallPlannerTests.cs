@@ -41,5 +41,28 @@ namespace LinkShot.Core.Tests
                 Assert.LessOrEqual(disposableCells.Count, state.Players[defender].DisposableWallCardsRemaining);
             }
         }
+
+        [Test]
+        public void PlanWalls_Strong_ClustersAroundTheStarsColumn()
+        {
+            for (int seed = 0; seed < 30; seed++)
+            {
+                var state = new GameState(ValidDeck, ValidDeck, rng: new Rng(seed));
+                int defender = state.CurrentDefender;
+                state.Players[defender].DisposableWallCardsRemaining = GameConfig.DisposableWallCardCount;
+                state.Field.StarWallColumn = 0; // 星は一番左の列
+
+                var (defaultCell, disposableCells) = CpuWallPlanner.PlanWalls(state, defender, CpuDifficulty.Strong, new Rng(seed));
+
+                int defaultColumn = defaultCell % GameConfig.WallGridColumns;
+                Assert.LessOrEqual(defaultColumn, 1, $"seed={seed}: default wall should land near column 0");
+
+                foreach (int cell in disposableCells)
+                {
+                    int column = cell % GameConfig.WallGridColumns;
+                    Assert.LessOrEqual(column, GameConfig.DisposableWallCardCount + 1, $"seed={seed}: disposable wall should extend from near column 0");
+                }
+            }
+        }
     }
 }

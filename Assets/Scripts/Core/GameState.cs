@@ -34,6 +34,17 @@ namespace LinkShot.Core
         public int LaunchPosition; // 1..6。0は未決定
         public TargetZoneId? WideGateZone;
 
+        /// <summary>
+        /// 最高得点の的(Score500、通称「星」)が置かれている壁グリッドの列(0..WallGridColumns-1)。
+        /// Game層(FieldView)がショットごとの的配置から算出してセットする。Core自体は座標を持たない。
+        /// 壁配置フェーズの開始時(RebuildTargets直後)にセットされ、そのショットの間は保持される
+        /// (Reset()では消さない。壁配置とショットのAI判断の両方が同じ値を参照するため)。
+        /// </summary>
+        public int? StarWallColumn;
+
+        /// <summary>星に最も近い発射ポジション(1..LaunchPositionCount)。StarWallColumnと同様、Game層が算出する。</summary>
+        public int? StarNearestLaunchPosition;
+
         public void Reset()
         {
             DefenderWalls.Clear();

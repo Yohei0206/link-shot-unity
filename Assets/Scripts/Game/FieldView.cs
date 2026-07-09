@@ -125,7 +125,12 @@ namespace LinkShot.Game
         /// 500点1個・300点3個・100点12個を、的帯（TargetBandBottomFraction内、WideBandWidth幅）の中で
         /// 重ならないように配置する。位置に意味はないため、先攻/後攻ごとに毎回作り直してよい。
         /// </summary>
-        public void RebuildTargets()
+        /// <summary>
+        /// 的を再配置し、最高得点の的(Score500、通称「星」)のワールド座標を返す(存在しなければnull)。
+        /// MatchDirectorがこれをGetWallColumnForWorldX/GetNearestLaunchPositionForWorldXで列・発射ポジション番号に
+        /// 変換し、Core(GameState.Field)へセットする。CPUのAI(Core層)が的の実位置を意識した判断をするために使う。
+        /// </summary>
+        public Vector2? RebuildTargets()
         {
             foreach (GameObject go in _targetObjects)
             {
@@ -135,16 +140,20 @@ namespace LinkShot.Game
             _targetObjects.Clear();
 
             var placed = new List<(Vector2 position, float radius)>();
-            PlaceRandomTargets(TargetZoneId.Score500, GameConfig.Score500Count, FieldWidth * GameConfig.Score500RadiusRatio, placed);
+            Vector2? starPosition = PlaceRandomTargets(TargetZoneId.Score500, GameConfig.Score500Count, FieldWidth * GameConfig.Score500RadiusRatio, placed);
             PlaceRandomTargets(TargetZoneId.Score300, GameConfig.Score300Count, FieldWidth * GameConfig.Score300RadiusRatio, placed);
             PlaceRandomTargets(TargetZoneId.Score100, GameConfig.Score100Count, FieldWidth * GameConfig.Score100RadiusRatio, placed);
+
+            return starPosition;
         }
 
-        private void PlaceRandomTargets(TargetZoneId zoneId, int count, float radius, List<(Vector2 position, float radius)> placed)
+        private Vector2? PlaceRandomTargets(TargetZoneId zoneId, int count, float radius, List<(Vector2 position, float radius)> placed)
         {
             float halfWidth = WideBandWidth / 2f - radius - TargetPlacementMargin;
             float yTop = FieldHeight / 2f - radius - TargetPlacementMargin;
             float yBottom = FractionToWorldY(TargetBandBottomFraction) + radius + TargetPlacementMargin;
+
+            Vector2? firstPosition = null;
 
             for (int i = 0; i < count; i++)
             {
@@ -164,7 +173,31 @@ namespace LinkShot.Game
 
                 placed.Add((position, radius));
                 CreateTarget(zoneId, position, radius);
+
+                if (i == 0)
+                {
+                    firstPosition = position;
+                }
             }
+
+            return firstPosition;
+        }
+
+        /// <summary>指定したワールドX座標に最も近い壁グリッドの列(0-based)を返す。</summary>
+        public static int GetWallColumnForWorldX(float worldX)
+        {
+            int columns = GameConfig.WallGridColumns;
+            float cellWidth = WallBandWidth / columns;
+            int col = Mathf.RoundToInt((worldX + WallBandWidth / 2f) / cellWidth - 0.5f);
+            return Mathf.Clamp(col, 0, columns - 1);
+        }
+
+        /// <summary>指定したワールドX座標に最も近い発射ポジション(1-based)を返す。</summary>
+        public static int GetNearestLaunchPositionForWorldX(float worldX)
+        {
+            float slotWidth = FieldWidth / GameConfig.LaunchPositionCount;
+            int position = Mathf.RoundToInt((worldX + FieldWidth / 2f) / slotWidth - 0.5f) + 1;
+            return Mathf.Clamp(position, 1, GameConfig.LaunchPositionCount);
         }
 
         private static bool OverlapsAny(Vector2 position, float radius, List<(Vector2 position, float radius)> placed)
