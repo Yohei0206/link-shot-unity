@@ -34,6 +34,11 @@ namespace LinkShot.Network
 
         private int _lastSeenSequence;
 
+        // PollNewActionsが1回で複数件返すことがある(例: 相手が立て続けに2アクションをpushした直後)。
+        // FetchNextActionはここに溜めて1件ずつ返すことで、呼び出し側がrows[0]だけ見て残りを
+        // 取りこぼす(=該当アクションを待つ別の呼び出しが永遠に届かなくなる)事故を防ぐ。
+        private readonly Queue<MatchActionRow> _pendingActions = new Queue<MatchActionRow>();
+
         public OnlineMatchService(SupabaseConfig config)
         {
             _client = new SupabaseRestClient(config);
@@ -224,6 +229,46 @@ namespace LinkShot.Network
             }
 
             onComplete?.Invoke(ok, result, error);
+        }
+
+        /// <summary>
+        /// 次に処理すべきアクションを1件だけ返す(内部キューに複数件溜まっていればポーリングせず
+        /// 先頭を返す)。CardSet/DeckSelect/PositionFinalized/Shotなど、複数の異なる待ち受けが
+        /// 同じmatch_actionsストリームを順番に消費する場面すべてでこちらを使うこと
+        /// (PollNewActionsを直接使うと、1回の応答に複数件混ざっていた場合に古いコードのように
+        /// 先頭だけ処理して残りを取りこぼす)。
+        /// </summary>
+        public IEnumerator FetchNextAction(Action<bool, MatchActionRow, string> onComplete)
+        {
+            if (_pendingActions.Count > 0)
+            {
+                onComplete?.Invoke(true, _pendingActions.Dequeue(), null);
+                yield break;
+            }
+
+            bool ok = false;
+            string error = null;
+
+            yield return PollNewActions((success, rows, err) =>
+            {
+                ok = success;
+                error = err;
+                if (success)
+                {
+                    foreach (MatchActionRow row in rows)
+                    {
+                        _pendingActions.Enqueue(row);
+                    }
+                }
+            });
+
+            if (!ok)
+            {
+                onComplete?.Invoke(false, null, error);
+                yield break;
+            }
+
+            onComplete?.Invoke(true, _pendingActions.Count > 0 ? _pendingActions.Dequeue() : null, null);
         }
 
         /// <summary>部屋を作った側が、相手が参加してstatus='active'になるまで待つ。</summary>

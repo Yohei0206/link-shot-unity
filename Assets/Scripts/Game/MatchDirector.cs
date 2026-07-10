@@ -84,27 +84,22 @@ namespace LinkShot.Game
         {
             while (true)
             {
-                List<MatchActionRow> rows = null;
+                MatchActionRow row = null;
                 bool ok = false;
 
-                yield return _onlineService.PollNewActions((success, result, err) =>
+                yield return _onlineService.FetchNextAction((success, result, err) =>
                 {
                     ok = success;
-                    rows = result;
+                    row = result;
                     if (!success)
                     {
                         Debug.LogError($"[Online] ポーリング失敗: {err}");
                     }
                 });
 
-                if (ok && rows != null && rows.Count > 0)
+                if (ok && row != null)
                 {
-                    if (rows.Count > 1)
-                    {
-                        Debug.LogWarning($"[Online] 1件のアクションを期待していたが{rows.Count}件届いた。先頭のみ使用する。");
-                    }
-
-                    onReceived(NetworkActionCodec.DecodeFromPayload(rows[0].payload));
+                    onReceived(NetworkActionCodec.DecodeFromPayload(row.payload));
                     yield break;
                 }
 
@@ -287,47 +282,24 @@ namespace LinkShot.Game
         {
             var decks = new List<string>[2];
 
-            for (int player = 0; player < 2; player++)
+            // カード選択と同じ理由(相手の手を見ずに決める)で、デッキ選択もオンラインでは
+            // 両プレイヤー同時でよい。ローカル対戦は1台を交代して使うため順番のまま。
+            if (_isOnlineMode)
             {
-                int currentPlayer = player;
-
-                if (IsCpu(currentPlayer))
+                bool[] done = { false, false };
+                for (int player = 0; player < 2; player++)
                 {
-                    yield return new WaitForSeconds(GameConfig.CpuThinkDelaySeconds);
-                    decks[currentPlayer] = CpuDeckBuilder.BuildDeck(_cpuRng);
-                    continue;
+                    int currentPlayer = player;
+                    StartCoroutine(RunDeckSelectForPlayer(currentPlayer, decks, () => done[currentPlayer] = true));
                 }
 
-                if (IsRemote(currentPlayer))
+                yield return new WaitUntil(() => done[0] && done[1]);
+            }
+            else
+            {
+                for (int player = 0; player < 2; player++)
                 {
-                    List<string> remoteDeck = null;
-                    yield return WaitForRemoteDeckSelection(deck => remoteDeck = deck);
-                    decks[currentPlayer] = remoteDeck;
-                    continue;
-                }
-
-                if (!_isOnlineMode)
-                {
-                    bool handoverDone = false;
-                    _handoverScreen.Show($"プレイヤー{currentPlayer + 1}に交代してください\nタップしてデッキを選んでください", () => handoverDone = true);
-                    yield return new WaitUntil(() => handoverDone);
-                }
-
-                List<string> chosenDeck = null;
-                _deckSelectPanel.Show(currentPlayer, deck => chosenDeck = new List<string>(deck));
-                yield return new WaitUntil(() => chosenDeck != null);
-
-                decks[currentPlayer] = chosenDeck;
-
-                if (_isOnlineMode)
-                {
-                    yield return _onlineService.PushDeckSelection(chosenDeck, (ok, err) =>
-                    {
-                        if (!ok)
-                        {
-                            Debug.LogError($"[Online] デッキ送信失敗: {err}");
-                        }
-                    });
+                    yield return RunDeckSelectForPlayer(player, decks, null);
                 }
             }
 
@@ -343,26 +315,73 @@ namespace LinkShot.Game
             _hudPanel.Show();
         }
 
+        /// <summary>1プレイヤー分のデッキ選択。onDoneはオンライン並列実行時のみ使う(nullなら呼ばない)。</summary>
+        private IEnumerator RunDeckSelectForPlayer(int currentPlayer, List<string>[] decks, Action onDone)
+        {
+            if (IsCpu(currentPlayer))
+            {
+                yield return new WaitForSeconds(GameConfig.CpuThinkDelaySeconds);
+                decks[currentPlayer] = CpuDeckBuilder.BuildDeck(_cpuRng);
+                onDone?.Invoke();
+                yield break;
+            }
+
+            if (IsRemote(currentPlayer))
+            {
+                List<string> remoteDeck = null;
+                yield return WaitForRemoteDeckSelection(deck => remoteDeck = deck);
+                decks[currentPlayer] = remoteDeck;
+                onDone?.Invoke();
+                yield break;
+            }
+
+            if (!_isOnlineMode)
+            {
+                bool handoverDone = false;
+                _handoverScreen.Show($"プレイヤー{currentPlayer + 1}に交代してください\nタップしてデッキを選んでください", () => handoverDone = true);
+                yield return new WaitUntil(() => handoverDone);
+            }
+
+            List<string> chosenDeck = null;
+            _deckSelectPanel.Show(currentPlayer, deck => chosenDeck = new List<string>(deck));
+            yield return new WaitUntil(() => chosenDeck != null);
+
+            decks[currentPlayer] = chosenDeck;
+
+            if (_isOnlineMode)
+            {
+                yield return _onlineService.PushDeckSelection(chosenDeck, (ok, err) =>
+                {
+                    if (!ok)
+                    {
+                        Debug.LogError($"[Online] デッキ送信失敗: {err}");
+                    }
+                });
+            }
+
+            onDone?.Invoke();
+        }
+
         private IEnumerator WaitForRemoteDeckSelection(Action<List<string>> onReceived)
         {
             while (true)
             {
-                List<MatchActionRow> rows = null;
+                MatchActionRow row = null;
                 bool ok = false;
 
-                yield return _onlineService.PollNewActions((success, result, err) =>
+                yield return _onlineService.FetchNextAction((success, result, err) =>
                 {
                     ok = success;
-                    rows = result;
+                    row = result;
                     if (!success)
                     {
                         Debug.LogError($"[Online] ポーリング失敗: {err}");
                     }
                 });
 
-                if (ok && rows != null && rows.Count > 0)
+                if (ok && row != null)
                 {
-                    onReceived(new List<string>(rows[0].payload.deckCardIds));
+                    onReceived(new List<string>(row.payload.deckCardIds));
                     yield break;
                 }
 
@@ -509,42 +528,26 @@ namespace LinkShot.Game
 
         private IEnumerator RunCardSetPhase()
         {
-            for (int player = 0; player < 2; player++)
+            // オンライン対戦では、カード選択は相手の手を見ずに決める同時公開制なので、
+            // 片方が終わるまで待たず両プレイヤーが同時に選べてよい(ローカル対戦は1台を
+            // 交代して使うため、これまで通り順番に行う)。
+            if (_isOnlineMode)
             {
-                int currentPlayer = player;
-
-                if (IsCpu(currentPlayer))
+                bool[] done = { false, false };
+                for (int player = 0; player < 2; player++)
                 {
-                    yield return new WaitForSeconds(GameConfig.CpuThinkDelaySeconds);
-                    int opponent = 1 - currentPlayer;
-                    string cardId = CpuCardSelector.ChooseCard(_state.Players[currentPlayer], _state.Players[opponent], _cpuDifficulty, _cpuRng);
-                    PhaseMachine.Dispatch(_state, new SetCardAction(currentPlayer, cardId));
-                    continue;
+                    int currentPlayer = player;
+                    StartCoroutine(RunCardSetForPlayer(currentPlayer, () => done[currentPlayer] = true));
                 }
 
-                if (IsRemote(currentPlayer))
+                yield return new WaitUntil(() => done[0] && done[1]);
+            }
+            else
+            {
+                for (int player = 0; player < 2; player++)
                 {
-                    yield return WaitForRemoteAction(action => PhaseMachine.Dispatch(_state, action));
-                    continue;
+                    yield return RunCardSetForPlayer(player, null);
                 }
-
-                if (!_isOnlineMode)
-                {
-                    bool handoverDone = false;
-                    _handoverScreen.Show($"プレイヤー{currentPlayer + 1}に交代してください\nタップしてカードを選んでください", () => handoverDone = true);
-                    yield return new WaitUntil(() => handoverDone);
-                }
-
-                bool selected = false;
-                _cardSelectPanel.Show(currentPlayer, _state.Players[currentPlayer].Hand, cardId =>
-                {
-                    var action = new SetCardAction(currentPlayer, cardId);
-                    PhaseMachine.Dispatch(_state, action);
-                    SyncIfOnline(action);
-                    selected = true;
-                });
-                yield return new WaitUntil(() => selected);
-                _cardSelectPanel.Hide();
             }
 
             if (!_isOnlineMode)
@@ -553,6 +556,46 @@ namespace LinkShot.Game
                 _handoverScreen.Show("カードが揃いました\nタップして壁配置に進みます", () => concealed = true);
                 yield return new WaitUntil(() => concealed);
             }
+        }
+
+        /// <summary>1プレイヤー分のカード選択。onDoneはオンライン並列実行時のみ使う(nullなら呼ばない)。</summary>
+        private IEnumerator RunCardSetForPlayer(int currentPlayer, Action onDone)
+        {
+            if (IsCpu(currentPlayer))
+            {
+                yield return new WaitForSeconds(GameConfig.CpuThinkDelaySeconds);
+                int opponent = 1 - currentPlayer;
+                string cardId = CpuCardSelector.ChooseCard(_state.Players[currentPlayer], _state.Players[opponent], _cpuDifficulty, _cpuRng);
+                PhaseMachine.Dispatch(_state, new SetCardAction(currentPlayer, cardId));
+                onDone?.Invoke();
+                yield break;
+            }
+
+            if (IsRemote(currentPlayer))
+            {
+                yield return WaitForRemoteAction(action => PhaseMachine.Dispatch(_state, action));
+                onDone?.Invoke();
+                yield break;
+            }
+
+            if (!_isOnlineMode)
+            {
+                bool handoverDone = false;
+                _handoverScreen.Show($"プレイヤー{currentPlayer + 1}に交代してください\nタップしてカードを選んでください", () => handoverDone = true);
+                yield return new WaitUntil(() => handoverDone);
+            }
+
+            bool selected = false;
+            _cardSelectPanel.Show(currentPlayer, _state.Players[currentPlayer].Hand, cardId =>
+            {
+                var action = new SetCardAction(currentPlayer, cardId);
+                PhaseMachine.Dispatch(_state, action);
+                SyncIfOnline(action);
+                selected = true;
+            });
+            yield return new WaitUntil(() => selected);
+            _cardSelectPanel.Hide();
+            onDone?.Invoke();
         }
 
         private IEnumerator RunWallPlacementPhase()
@@ -697,22 +740,22 @@ namespace LinkShot.Game
         {
             while (true)
             {
-                List<MatchActionRow> rows = null;
+                MatchActionRow row = null;
                 bool ok = false;
 
-                yield return _onlineService.PollNewActions((success, result, err) =>
+                yield return _onlineService.FetchNextAction((success, result, err) =>
                 {
                     ok = success;
-                    rows = result;
+                    row = result;
                     if (!success)
                     {
                         Debug.LogError($"[Online] ポーリング失敗: {err}");
                     }
                 });
 
-                if (ok && rows != null && rows.Count > 0)
+                if (ok && row != null)
                 {
-                    int position = rows[0].payload.position;
+                    int position = row.payload.position;
                     _state.Field.LaunchPosition = position;
                     _state.PendingDiceRoll = null;
                     _state.RerollAvailable = false;
