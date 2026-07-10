@@ -46,6 +46,10 @@ namespace LinkShot.Game
         private CpuDifficulty _cpuDifficulty;
         private readonly Rng _cpuRng = new Rng();
 
+        // 的の配置(FieldView.RebuildTargets)専用のシード。オンライン対戦では両クライアントで
+        // 一致させ、同じshotで同じ的レイアウトになるようにする(Core.Rngとは別物。詳細はRebuildTargets参照)。
+        private int _fieldRngSeed;
+
         private bool IsCpu(int player) => _cpuPlayerIndex == player;
 
         // --- Phase 3: オンライン同期対戦 ---
@@ -335,6 +339,7 @@ namespace LinkShot.Game
             }
 
             _state = new GameState(decks[0], decks[1]);
+            _fieldRngSeed = _isOnlineMode ? _onlineService.RngSeed : new System.Random().Next();
             _hudPanel.Show();
         }
 
@@ -555,7 +560,10 @@ namespace LinkShot.Game
             int defender = _state.CurrentDefender;
 
             // 的は貫通式でショットごとにランダム配置し直す（先攻/後攻それぞれ、GAME_RULES.md 5.1章）。
-            Vector2? starWorldPosition = _fieldView.RebuildTargets();
+            // シードはRound/ShotIndexと組み合わせる: オンラインでは両クライアントが同じ値を計算するため、
+            // 的のレイアウトが両者で一致する。
+            int shotSeed = _fieldRngSeed ^ (_state.Round * 397 + _state.ShotIndex);
+            Vector2? starWorldPosition = _fieldView.RebuildTargets(shotSeed);
             _state.Field.StarWallColumn = starWorldPosition.HasValue ? FieldView.GetWallColumnForWorldX(starWorldPosition.Value.x) : (int?)null;
             _state.Field.StarNearestLaunchPosition = starWorldPosition.HasValue ? FieldView.GetNearestLaunchPositionForWorldX(starWorldPosition.Value.x) : (int?)null;
             _fieldView.HighlightLaunchPosition(null);

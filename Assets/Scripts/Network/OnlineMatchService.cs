@@ -26,6 +26,12 @@ namespace LinkShot.Network
         /// <summary>0=部屋を作った側(先にサインインした側)、1=参加した側。</summary>
         public int LocalPlayerIndex { get; private set; } = -1;
 
+        /// <summary>
+        /// 両クライアントで共有する試合単位の乱数シード。的の配置(FieldView.RebuildTargets)を
+        /// 両者で一致させるために使う(Core側のRngとは別。CoreのRngは非対称消費が前提のため)。
+        /// </summary>
+        public int RngSeed { get; private set; }
+
         private int _lastSeenSequence;
 
         public OnlineMatchService(SupabaseConfig config)
@@ -42,7 +48,8 @@ namespace LinkShot.Network
         public IEnumerator CreateRoom(Action<bool, string, string> onComplete)
         {
             string roomCode = GenerateRoomCode();
-            string body = $"{{\"room_code\":\"{roomCode}\",\"player0_id\":\"{_client.UserId}\"}}";
+            int rngSeed = _random.Next();
+            string body = $"{{\"room_code\":\"{roomCode}\",\"player0_id\":\"{_client.UserId}\",\"rng_seed\":{rngSeed}}}";
 
             bool done = false;
             bool ok = false;
@@ -58,6 +65,7 @@ namespace LinkShot.Network
                     MatchId = rows[0].id;
                     RoomCode = roomCode;
                     LocalPlayerIndex = 0;
+                    RngSeed = rows[0].rng_seed;
                 }
                 else
                 {
@@ -127,6 +135,7 @@ namespace LinkShot.Network
             MatchId = match.id;
             RoomCode = roomCode;
             LocalPlayerIndex = 1;
+            RngSeed = match.rng_seed;
             onComplete?.Invoke(true, null);
         }
 

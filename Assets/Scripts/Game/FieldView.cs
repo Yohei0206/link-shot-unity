@@ -130,7 +130,12 @@ namespace LinkShot.Game
         /// MatchDirectorがこれをGetWallColumnForWorldX/GetNearestLaunchPositionForWorldXで列・発射ポジション番号に
         /// 変換し、Core(GameState.Field)へセットする。CPUのAI(Core層)が的の実位置を意識した判断をするために使う。
         /// </summary>
-        public Vector2? RebuildTargets()
+        /// <param name="seed">
+        /// 指定するとこの値だけで再配置を決定する(UnityEngine.Randomのグローバル状態を使わない)。
+        /// オンライン対戦では両クライアントが同じshotごとの値を渡すことで、的の配置を一致させる
+        /// (MatchDirector参照)。省略時は非決定的(タイトル画面の初期表示・ローカル対戦向け)。
+        /// </param>
+        public Vector2? RebuildTargets(int? seed = null)
         {
             foreach (GameObject go in _targetObjects)
             {
@@ -139,15 +144,16 @@ namespace LinkShot.Game
 
             _targetObjects.Clear();
 
+            var rng = seed.HasValue ? new System.Random(seed.Value) : new System.Random();
             var placed = new List<(Vector2 position, float radius)>();
-            Vector2? starPosition = PlaceRandomTargets(TargetZoneId.Score500, GameConfig.Score500Count, FieldWidth * GameConfig.Score500RadiusRatio, placed);
-            PlaceRandomTargets(TargetZoneId.Score300, GameConfig.Score300Count, FieldWidth * GameConfig.Score300RadiusRatio, placed);
-            PlaceRandomTargets(TargetZoneId.Score100, GameConfig.Score100Count, FieldWidth * GameConfig.Score100RadiusRatio, placed);
+            Vector2? starPosition = PlaceRandomTargets(rng, TargetZoneId.Score500, GameConfig.Score500Count, FieldWidth * GameConfig.Score500RadiusRatio, placed);
+            PlaceRandomTargets(rng, TargetZoneId.Score300, GameConfig.Score300Count, FieldWidth * GameConfig.Score300RadiusRatio, placed);
+            PlaceRandomTargets(rng, TargetZoneId.Score100, GameConfig.Score100Count, FieldWidth * GameConfig.Score100RadiusRatio, placed);
 
             return starPosition;
         }
 
-        private Vector2? PlaceRandomTargets(TargetZoneId zoneId, int count, float radius, List<(Vector2 position, float radius)> placed)
+        private Vector2? PlaceRandomTargets(System.Random rng, TargetZoneId zoneId, int count, float radius, List<(Vector2 position, float radius)> placed)
         {
             float halfWidth = WideBandWidth / 2f - radius - TargetPlacementMargin;
             float yTop = FieldHeight / 2f - radius - TargetPlacementMargin;
@@ -162,8 +168,8 @@ namespace LinkShot.Game
                 for (int attempt = 0; attempt < TargetPlacementMaxAttempts; attempt++)
                 {
                     position = new Vector2(
-                        Random.Range(-halfWidth, halfWidth),
-                        Random.Range(yBottom, yTop));
+                        NextFloat(rng, -halfWidth, halfWidth),
+                        NextFloat(rng, yBottom, yTop));
 
                     if (!OverlapsAny(position, radius, placed))
                     {
@@ -181,6 +187,11 @@ namespace LinkShot.Game
             }
 
             return firstPosition;
+        }
+
+        private static float NextFloat(System.Random rng, float min, float max)
+        {
+            return min + (float)rng.NextDouble() * (max - min);
         }
 
         /// <summary>指定したワールドX座標に最も近い壁グリッドの列(0-based)を返す。</summary>
