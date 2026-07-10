@@ -187,15 +187,27 @@ namespace LinkShot.Game
             _isOnlineMode = true;
 
             var config = Resources.Load<SupabaseConfig>("Network/SupabaseConfig");
+            if (config == null)
+            {
+                _onlineRoomPanel.ShowFatalError("設定が見つかりません(Resources/Network/SupabaseConfig)");
+                yield break;
+            }
+
             _onlineService = new OnlineMatchService(config);
 
+            bool signInOk = false;
+            string signInError = null;
             yield return _onlineService.SignIn((ok, err) =>
             {
-                if (!ok)
-                {
-                    _onlineRoomPanel.ShowStatus($"サインインに失敗しました: {err}");
-                }
+                signInOk = ok;
+                signInError = err;
             });
+
+            if (!signInOk)
+            {
+                _onlineRoomPanel.ShowFatalError($"サインインに失敗しました: {signInError}");
+                yield break;
+            }
 
             bool ready = false;
             _onlineRoomPanel.Show(
@@ -219,7 +231,7 @@ namespace LinkShot.Game
                 roomCode = code;
                 if (!ok)
                 {
-                    _onlineRoomPanel.ShowStatus($"部屋の作成に失敗しました: {err}");
+                    _onlineRoomPanel.ShowRetryableError($"部屋の作成に失敗しました: {err}");
                 }
             });
 
@@ -230,13 +242,19 @@ namespace LinkShot.Game
 
             _onlineRoomPanel.ShowWaitingForOpponent(roomCode);
 
+            bool opponentOk = false;
+            string opponentError = null;
             yield return _onlineService.WaitForOpponent((ok, err) =>
             {
-                if (!ok)
-                {
-                    _onlineRoomPanel.ShowStatus($"エラー: {err}");
-                }
+                opponentOk = ok;
+                opponentError = err;
             });
+
+            if (!opponentOk)
+            {
+                _onlineRoomPanel.ShowRetryableError($"エラー: {opponentError}");
+                yield break;
+            }
 
             onReady?.Invoke();
         }
@@ -250,7 +268,7 @@ namespace LinkShot.Game
                 joined = ok;
                 if (!ok)
                 {
-                    _onlineRoomPanel.ShowStatus($"参加に失敗しました: {err}");
+                    _onlineRoomPanel.ShowRetryableError($"参加に失敗しました: {err}");
                 }
             });
 

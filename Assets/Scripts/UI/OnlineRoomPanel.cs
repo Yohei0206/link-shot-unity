@@ -7,7 +7,7 @@ namespace LinkShot.UI
     /// <summary>
     /// オンライン対戦のルーム作成/参加画面(ROADMAP.md Phase 3)。
     /// このパネル自体は通信を行わない(見た目とボタン操作の通知のみ)。実際のSupabase通信は
-    /// MatchDirectorが行い、結果に応じてShowWaitingForOpponent/ShowStatus/Hideを呼び分ける。
+    /// MatchDirectorが行い、結果に応じてShowWaitingForOpponent/ShowRetryableError/ShowFatalError/Hideを呼び分ける。
     /// </summary>
     public class OnlineRoomPanel : MonoBehaviour
     {
@@ -17,6 +17,8 @@ namespace LinkShot.UI
         private GameObject _createJoinGroup;
         private InputField _roomCodeInput;
         private Text _statusText;
+        private Button _createButton;
+        private Button _joinButton;
 
         private void Awake()
         {
@@ -31,19 +33,20 @@ namespace LinkShot.UI
             UITheme.Stretch((RectTransform)groupGo.transform);
             _createJoinGroup = groupGo;
 
-            Button createButton = UITheme.CreateButton(groupGo.transform, "CreateButton", "部屋を作る", HandleCreateClicked);
-            UITheme.SetRect(createButton.GetComponent<RectTransform>(), new Vector2(0, 120), new Vector2(600, 130));
+            _createButton = UITheme.CreateButton(groupGo.transform, "CreateButton", "部屋を作る", HandleCreateClicked);
+            UITheme.SetRect(_createButton.GetComponent<RectTransform>(), new Vector2(0, 120), new Vector2(600, 130));
 
             Text joinLabel = UITheme.CreateText(groupGo.transform, "JoinLabel", "ルームコードを入力して参加", 28, Color.white, TextAnchor.MiddleCenter);
             UITheme.SetRect(joinLabel.rectTransform, new Vector2(0, -60), new Vector2(600, 60));
 
             _roomCodeInput = CreateInputField(groupGo.transform, new Vector2(0, -140));
 
-            Button joinButton = UITheme.CreateButton(groupGo.transform, "JoinButton", "参加する", HandleJoinClicked);
-            UITheme.SetRect(joinButton.GetComponent<RectTransform>(), new Vector2(0, -260), new Vector2(600, 130));
+            _joinButton = UITheme.CreateButton(groupGo.transform, "JoinButton", "参加する", HandleJoinClicked);
+            UITheme.SetRect(_joinButton.GetComponent<RectTransform>(), new Vector2(0, -260), new Vector2(600, 130));
 
             _statusText = UITheme.CreateText(transform, "Status", string.Empty, 30, Color.white, TextAnchor.MiddleCenter);
             UITheme.SetRect(_statusText.rectTransform, new Vector2(0, 0), new Vector2(1000, 300));
+            _statusText.raycastTarget = false;
 
             gameObject.SetActive(false);
         }
@@ -71,12 +74,24 @@ namespace LinkShot.UI
             _roomCodeInput.text = string.Empty;
             _statusText.text = string.Empty;
             _createJoinGroup.SetActive(true);
+            SetButtonsInteractable(true);
             gameObject.SetActive(true);
         }
 
-        public void ShowStatus(string message)
+        /// <summary>再試行できるエラー(部屋作成/参加/相手待機の失敗)。ボタンを再度押せる状態に戻す。</summary>
+        public void ShowRetryableError(string message)
         {
+            _createJoinGroup.SetActive(true);
+            SetButtonsInteractable(true);
             _statusText.text = message;
+        }
+
+        /// <summary>致命的エラー(設定不備・サインイン失敗)。ボタン自体を出さず、再試行を促さない。</summary>
+        public void ShowFatalError(string message)
+        {
+            _createJoinGroup.SetActive(false);
+            _statusText.text = message;
+            gameObject.SetActive(true);
         }
 
         /// <summary>部屋作成後、相手の参加を待っている間の表示に切り替える。</summary>
@@ -91,14 +106,25 @@ namespace LinkShot.UI
             gameObject.SetActive(false);
         }
 
+        private void SetButtonsInteractable(bool interactable)
+        {
+            _createButton.interactable = interactable;
+            _joinButton.interactable = interactable;
+            _roomCodeInput.interactable = interactable;
+        }
+
         private void HandleCreateClicked()
         {
+            SetButtonsInteractable(false);
+            _statusText.text = "部屋を作成しています...";
             _onCreateRoomClicked?.Invoke();
         }
 
         private void HandleJoinClicked()
         {
             string code = (_roomCodeInput.text ?? string.Empty).Trim().ToUpperInvariant();
+            SetButtonsInteractable(false);
+            _statusText.text = "参加しています...";
             _onJoinRoomClicked?.Invoke(code);
         }
     }
