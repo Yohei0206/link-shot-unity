@@ -775,71 +775,81 @@ namespace LinkShot.Game
         {
             EffectChoice choice = default;
             int attacker = _state.CurrentAttacker;
-            bool receivedFromRemote = false;
+
+            // trueなら、このクライアントが実際に対象を決定した側(=攻撃側がリモートでない)なので、
+            // 結果をpushする責任がある。対象選択が不要な効果・効果が発動していない場合は
+            // 両クライアントが同じ結果を決定的に計算できるため、どちらもpushしない
+            // (両方がpushしてしまうと、同じ試合に重複行が入りsequenceが壊れる。ProceedActionと同じ考え方)。
+            bool needsSync = false;
 
             if (_state.CurrentShotEffectActivated)
             {
                 EffectId effectId = _state.AttackerCard.Effect;
                 Debug.Log($"[Round {_state.Round} Shot {_state.ShotIndex}] 攻撃効果発動: {effectId}");
 
-                if (IsRemote(attacker) && NeedsEffectTarget(effectId))
+                if (NeedsEffectTarget(effectId))
                 {
-                    yield return WaitForRemoteAction(action => choice = ((ResolveEffectAction)action).Choice);
-                    receivedFromRemote = true;
-                }
-                else if (IsCpu(attacker) && NeedsEffectTarget(effectId))
-                {
-                    yield return new WaitForSeconds(GameConfig.CpuThinkDelaySeconds);
-                    choice = CpuEffectChoiceSelector.Choose(_state, effectId, _cpuDifficulty, _cpuRng);
-                }
-                else
-                {
-                    bool resolved = false;
-
-                    switch (effectId)
+                    if (IsRemote(attacker))
                     {
-                        case EffectId.WallRemove when _state.Field.DefenderWalls.Count > 0:
-                            _effectChoicePanel.ShowWallRemove(_state.Field.DefenderWalls, cell =>
-                            {
-                                choice = new EffectChoice { WallTargetCellIndex = cell };
-                                resolved = true;
-                            });
-                            yield return new WaitUntil(() => resolved);
-                            break;
+                        yield return WaitForRemoteAction(action => choice = ((ResolveEffectAction)action).Choice);
+                    }
+                    else if (IsCpu(attacker))
+                    {
+                        yield return new WaitForSeconds(GameConfig.CpuThinkDelaySeconds);
+                        choice = CpuEffectChoiceSelector.Choose(_state, effectId, _cpuDifficulty, _cpuRng);
+                        needsSync = true;
+                    }
+                    else
+                    {
+                        bool resolved = false;
 
-                        case EffectId.WallShift when _state.Field.DefenderWalls.Count > 0:
-                            _effectChoicePanel.ShowWallShift(_state.Field.DefenderWalls, (fromCell, toCell) =>
-                            {
-                                choice = new EffectChoice { WallTargetCellIndex = fromCell, WallDestinationCellIndex = toCell };
-                                resolved = true;
-                            });
-                            yield return new WaitUntil(() => resolved);
-                            break;
+                        switch (effectId)
+                        {
+                            case EffectId.WallRemove when _state.Field.DefenderWalls.Count > 0:
+                                _effectChoicePanel.ShowWallRemove(_state.Field.DefenderWalls, cell =>
+                                {
+                                    choice = new EffectChoice { WallTargetCellIndex = cell };
+                                    resolved = true;
+                                });
+                                yield return new WaitUntil(() => resolved);
+                                break;
 
-                        case EffectId.BounceBoard:
-                            _effectChoicePanel.ShowBounceBoard(position =>
-                            {
-                                choice = new EffectChoice { BouncePosition = position };
-                                resolved = true;
-                            });
-                            yield return new WaitUntil(() => resolved);
-                            break;
+                            case EffectId.WallShift when _state.Field.DefenderWalls.Count > 0:
+                                _effectChoicePanel.ShowWallShift(_state.Field.DefenderWalls, (fromCell, toCell) =>
+                                {
+                                    choice = new EffectChoice { WallTargetCellIndex = fromCell, WallDestinationCellIndex = toCell };
+                                    resolved = true;
+                                });
+                                yield return new WaitUntil(() => resolved);
+                                break;
 
-                        case EffectId.WideGate:
-                            _effectChoicePanel.ShowWideGate(zone =>
-                            {
-                                choice = new EffectChoice { WideGateZone = zone };
-                                resolved = true;
-                            });
-                            yield return new WaitUntil(() => resolved);
-                            break;
+                            case EffectId.BounceBoard:
+                                _effectChoicePanel.ShowBounceBoard(position =>
+                                {
+                                    choice = new EffectChoice { BouncePosition = position };
+                                    resolved = true;
+                                });
+                                yield return new WaitUntil(() => resolved);
+                                break;
+
+                            case EffectId.WideGate:
+                                _effectChoicePanel.ShowWideGate(zone =>
+                                {
+                                    choice = new EffectChoice { WideGateZone = zone };
+                                    resolved = true;
+                                });
+                                yield return new WaitUntil(() => resolved);
+                                break;
+                        }
+
+                        needsSync = true;
                     }
                 }
             }
 
             var resolveAction = new ResolveEffectAction(choice);
             PhaseMachine.Dispatch(_state, resolveAction);
-            if (!receivedFromRemote)
+            if (needsSync)
             {
                 SyncIfOnline(resolveAction);
             }
